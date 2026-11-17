@@ -2,25 +2,37 @@
 
 A minimal money app for Canada: track spending, split costs, set bill reminders, and plan RRSP / TFSA / FHSA contributions.
 
-This repo currently holds the **clickable UI prototype** (`index.html`), a single file with no build step. Open it in a browser, or serve the folder:
+This repo holds the app as a single-file web app (`index.html`) with no build step. Until the App Store version is approved, it runs on your iPhone as an installable web app.
+
+## Use it on your iPhone now
+
+1. Open **https://gavinsan.github.io/Glacio/** in Safari.
+2. Tap **Share → Add to Home Screen**.
+3. Open Glacio from the home screen icon. It runs full screen and works offline.
+
+Your data is stored only on that phone, inside the home-screen app. Use **Settings (gear on Overview) → Export backup** now and then. The same backup file is how you move your data into the App Store version later.
+
+Starting values in Tax are a typical Toronto renter (late 2026): salary $80,000, costs $3,500/month, save $8,000/year, RRSP room $14,400, TFSA $7,000, FHSA $8,000. Change any of them in Tax. The sources are in a comment above `TORONTO` in `index.html`.
+
+To run it locally instead:
 
 ```bash
 python -m http.server 8765
 ```
 
-Then visit http://localhost:8765. It is sized for an iPhone and shows a phone frame on desktop.
+Then visit http://localhost:8765. It shows a phone frame on desktop.
 
 ## What the prototype covers
 
 | Area | What it does |
 |---|---|
 | Overview | Income vs expense donut. Tap a slice to select it; press and hold to open spending by account (Visa, Amex, Debit, Cash), then tap an account for its category donut and records. |
-| Add (+) | Income or expense, keypad, category, account, date, repeat schedule and reminder. |
-| Apple Wallet | Demo of auto-logging Apple Pay taps (see note below). |
-| Split | Group costs split evenly, who paid, who owes, nudge and mark-paid. Examples: a $100 party for 5, and rent + hydro + gas for 3 roommates. |
+| Add (+) | Income or expense, keypad, category, account, date (yesterday, today, tomorrow, next 1st), repeat schedule. |
+| Settings | Export / restore a backup file, erase all data. Apple Wallet auto-logging waits for the App Store version. |
+| Split | Create a group, add shared costs, see who owes whom, send a reminder through the iPhone share sheet, mark paid. |
 | Tax · Plan | Province picker (city lookup), 2026 combined tax buckets, income and costs, RRSP / TFSA / FHSA room with "how to find it" help, then a suggested split that never exceeds what is left after costs. |
 | Tax · Forecast | Salary slider, take-home, ordered "what to do" steps, 10-year projection by account, and a salary guide table. |
-| Reminders | Credit card, mortgage, loan and bill due dates with alert toggles, plus scheduled income and expenses. |
+| Reminders | Bill due days and scheduled income / expenses. Scheduled items log themselves on their day. Tap any record to delete it. |
 
 Design rules: about 70% black, 25% white and 5% light blue for controls and motion. Every row stays on one line, with no ellipsis. Categories use a colour-blind-checked palette.
 
@@ -30,3 +42,4 @@ Design rules: about 70% black, 25% white and 5% light blue for controls and moti
 - **Tax data:** Federal and Ontario 2026 figures were checked against published tables. Other provinces are estimates and must be verified. Ship tax tables as remote data, updated yearly.
 - **Split nudges** need user accounts and push notifications (for example CloudKit sharing or Firebase).
 - **Legal:** All tax output is labelled as an educational estimate, not advice. Have a lawyer review the terms before App Store release.
+- **Notifications:** the web app cannot send bill alerts on iPhone without a push server, so reminders are only highlighted inside the app. Real alerts come with the App Store version.
