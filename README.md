@@ -28,9 +28,9 @@ Then visit http://localhost:8765. It shows a phone frame on desktop.
 |---|---|
 | Overview | Income vs expense donut. Tap a slice to select it; press and hold to open spending by account (Visa, Amex, Debit, Cash), then tap an account for its category donut and records. |
 | Investments | On Overview. Add TFSA / RRSP / FHSA / other accounts, log money put in or taken out, update what each is worth. Shows gain and this year's room left. |
-| Add (+) | Income or expense, keypad, category, account, date (yesterday, today, tomorrow, next 1st), repeat schedule. |
+| Add (+) | Income or expense, keypad, category, account (add one right there if you have none), date (yesterday, today, tomorrow, next 1st), repeat schedule. |
 | Privacy | Eye button on every screen hides all amounts, including the spend & save chart. |
-| Settings | Export / restore a backup file, erase all data. Apple Wallet auto-logging waits for the App Store version. |
+| Settings | Your payment accounts (credit, debit, cash), export / restore a backup file, erase all data. Apple Wallet auto-logging waits for the App Store version. |
 | Split | Create a group, add shared costs, see who owes whom, send a reminder through the iPhone share sheet, mark paid. |
 | Tax · Plan | Province picker (city lookup), 2026 combined tax buckets, income and costs, RRSP / TFSA / FHSA room with "how to find it" help, then a suggested split that never exceeds what is left after costs. |
 | Tax · Forecast | Salary slider, take-home, ordered "what to do" steps, 10-year projection by account, and a salary guide table. |

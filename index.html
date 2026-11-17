@@ -43,9 +43,9 @@ i[data-lucide],svg.lucide{width:20px;height:20px;flex:none}
 .statusbar .sb i,.statusbar .sb svg{width:16px;height:16px}
 .screen{position:absolute;top:46px;left:0;right:0;bottom:82px;overflow-y:auto;overflow-x:hidden;padding-block:6px 28px;padding-left:max(18px,env(safe-area-inset-left,0px));padding-right:max(18px,env(safe-area-inset-right,0px));scrollbar-width:none}
 .screen::-webkit-scrollbar{display:none}
-.screen.enter>*{animation:rise .32s cubic-bezier(.2,.8,.2,1) both}
+.screen.enter>*:nth-child(-n+4){animation:rise .22s cubic-bezier(.2,.8,.2,1) both}
 .screen.enter>*:nth-child(2){animation-delay:.03s}.screen.enter>*:nth-child(3){animation-delay:.06s}.screen.enter>*:nth-child(4){animation-delay:.09s}.screen.enter>*:nth-child(n+5){animation-delay:.12s}
-@keyframes rise{from{transform:translateY(10px)}to{transform:none}}
+@keyframes rise{from{transform:translateY(8px);opacity:.4}to{transform:none;opacity:1}}
 @media (max-width:520px){
   .stage{padding:0}
   .device{width:100%;height:100%;border-radius:0;border:0;box-shadow:none}
@@ -109,7 +109,7 @@ button.row:active{background:var(--ink-3)}
 .donut-wrap{display:grid;place-items:center;margin:8px 0 4px;position:relative}
 .donut{position:relative;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none;touch-action:manipulation}
 .donut svg{transform:rotate(-90deg);display:block;overflow:visible}
-.arc{animation:draw .9s cubic-bezier(.2,.8,.2,1);transition:stroke .25s, stroke-width .3s;cursor:pointer}
+.arc{animation:draw .55s cubic-bezier(.2,.8,.2,1);transition:stroke .25s, stroke-width .3s;cursor:pointer}
 @keyframes draw{from{stroke-dasharray:0 var(--c)}}
 
 .arc.holding{stroke-width:32px;transition:stroke-width .45s}
@@ -252,14 +252,14 @@ button.row:active{background:var(--ink-3)}
 .tab .dot{display:none}
 .tab svg{transition:transform .35s cubic-bezier(.3,1.5,.5,1), filter .3s}
 .tab[aria-current="page"] svg{filter:drop-shadow(0 0 7px var(--ice-glow));transform:translateY(-2px) scale(1.08)}
-.tab-add{animation:breathe 2.6s ease-in-out infinite;transition:transform .35s cubic-bezier(.3,1.5,.5,1)}
+.tab-add{box-shadow:0 6px 22px rgba(92,200,255,.4);transition:transform .35s cubic-bezier(.3,1.5,.5,1)}
 .tab-add.open{transform:rotate(45deg) scale(.92)}
 @keyframes breathe{0%,100%{box-shadow:0 0 0 0 rgba(92,200,255,.55),0 6px 20px rgba(92,200,255,.35)}50%{box-shadow:0 0 0 10px rgba(92,200,255,0),0 6px 32px rgba(92,200,255,.65)}}
 .btn{position:relative;overflow:hidden}
 .btn:not(.ghost){box-shadow:0 10px 28px -8px var(--ice-glow)}
-.btn:not(.ghost)::after{content:"";position:absolute;inset:0;background:linear-gradient(110deg,transparent 30%,rgba(255,255,255,.5) 50%,transparent 70%);transform:translateX(-120%);animation:sheen 3.2s ease-in-out infinite;pointer-events:none}
+.btn:not(.ghost)::after{content:"";position:absolute;inset:0;background:linear-gradient(110deg,transparent 30%,rgba(255,255,255,.5) 50%,transparent 70%);transform:translateX(-120%);animation:sheen 1.2s ease-in-out .5s 1;pointer-events:none}
 @keyframes sheen{60%,100%{transform:translateX(120%)}}
-.hero-num{background:linear-gradient(90deg,var(--ice) 0%,#E8F7FF 45%,var(--ice) 62%);background-size:250% 100%;-webkit-background-clip:text;background-clip:text;color:transparent;animation:textsheen 4s linear infinite;filter:drop-shadow(0 0 18px rgba(92,200,255,.35))}
+.hero-num{background:linear-gradient(90deg,var(--ice) 0%,#E8F7FF 45%,var(--ice) 62%);background-size:250% 100%;-webkit-background-clip:text;background-clip:text;color:transparent;background-position:30% 0;filter:drop-shadow(0 0 18px rgba(92,200,255,.35))}
 @keyframes textsheen{from{background-position:100% 0}to{background-position:-150% 0}}
 .arc{transition:stroke .25s, stroke-width .4s cubic-bezier(.3,1.5,.5,1), opacity .3s}
 .donut.has-sel .arc:not(.sel){opacity:.28}
@@ -410,12 +410,13 @@ const MON = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','
 const RAMP = ['#F3F5F7','#C5CCD4','#97A1AD','#717B87','#535C67','#3E454E','#2E343B','#252A30'];
 
 const SER={rrsp:'#3987e5',tfsa:'#d95926',fhsa:'#199e70',cash:'#c98500'}; // validated dark categorical slots 1-4
-const ACCTS = {
-  visa:{n:'Visa', s:'Visa', i:'credit-card', k:'Credit', c:'#3987e5'},
-  amex:{n:'Amex', s:'Amex', i:'credit-card', k:'Credit', c:'#d95926'},
-  debit:{n:'Chequing', s:'Debit', i:'landmark', k:'Debit', c:'#199e70'},
-  cash:{n:'Cash', s:'Cash', i:'banknote', k:'Cash', c:'#c98500'}
-};
+/* payment accounts are yours to set up (Settings or the + sheet) */
+const ACCT_KIND={credit:{k:'Credit',i:'credit-card'},debit:{k:'Debit',i:'landmark'},cash:{k:'Cash',i:'banknote'}};
+const ACCT_COLORS=['#3987e5','#d95926','#199e70','#c98500','#9085e9','#d55181']; // fixed order, a colour stays with its account
+const LEGACY_ACCTS={visa:{n:'Visa',kind:'credit'},amex:{n:'Amex',kind:'credit'},debit:{n:'Chequing',kind:'debit'},cash:{n:'Cash',kind:'cash'}};
+const NOACCT={n:'No account',i:'wallet',k:'Other',c:'#717B87'};
+function acct(id){const a=S.accts.find(x=>x.id===id);if(!a)return NOACCT;const kd=ACCT_KIND[a.kind]||ACCT_KIND.debit;return {n:a.n,i:kd.i,k:kd.k,c:a.c}}
+const acctKey=t=>S.accts.some(a=>a.id===t.acct)?t.acct:'';
 const CATS = {
   housing:{n:'Housing',i:'house',c:'#3987e5'}, groceries:{n:'Groceries',i:'shopping-basket',c:'#199e70'}, dining:{n:'Dining',i:'utensils',c:'#d95926'},
   transport:{n:'Transport',i:'car',c:'#9085e9'}, shopping:{n:'Shopping',i:'shopping-bag',c:'#d55181'}, bills:{n:'Utilities',i:'zap',c:'#c98500'},
@@ -520,7 +521,7 @@ function plan(t){
    Save 10% of gross. RRSP room = 18% of $80k. TFSA 2026 = $7,000. FHSA = $8,000/yr. */
 const TORONTO = {salary:80000, monthly:3500, target:8000, rrspRoom:14400};
 const DEFAULT = ()=>({
-  txns:[], sched:[], rem:[], groups:[], inv:[], people:{you:'You'},
+  txns:[], sched:[], rem:[], groups:[], inv:[], accts:[], people:{you:'You'},
   tax:{step:0,prov:'ON',city:'Toronto',salary:TORONTO.salary,bonus:0,pt:0,other:0,freq:26,monthly:TORONTO.monthly,target:TORONTO.target,
        rrspRoom:TORONTO.rrspRoom,tfsaRoom:7000,home:true,fhsaRoom:8000,mode:'bal'},
   fc:{salary:TORONTO.salary,save:.2,ret:.05}
@@ -529,6 +530,8 @@ const KEY='glacio-v2';
 let S; try{S=JSON.parse(localStorage.getItem(KEY))}catch(e){S=null}
 if(!S||!S.txns)S=DEFAULT();
 function bindState(){const d=DEFAULT();['txns','sched','rem','groups','inv'].forEach(k=>{if(!Array.isArray(S[k]))S[k]=[]});
+  if(!Array.isArray(S.accts)){const used=[...new Set([...S.txns,...S.sched].map(t=>t.acct))].filter(k=>LEGACY_ACCTS[k]);
+    S.accts=used.map((k,i)=>({id:k,n:LEGACY_ACCTS[k].n,kind:LEGACY_ACCTS[k].kind,c:ACCT_COLORS[i]}))}
   S.people=S.people||{you:'You'};S.tax={...d.tax,...(S.tax||{})};S.fc={...d.fc,...(S.fc||{})};PEOPLE=S.people}
 bindState();
 const V={tview:'plan',fcYr:null,tab:'home',lvl:0,type:'out',acct:null,sel:null,grp:null,nudged:{},newId:null};
@@ -560,7 +563,7 @@ const fmt=(n,d=0)=>S.hide?'$••••':(n<0?'−':'')+'$'+Math.abs(n).toLocal
 const fmt2=n=>fmt(n,2);
 const fmtK=n=>n===Infinity?'':(n>=1000?'$'+(Math.round(n/100)/10).toLocaleString('en-CA')+'K':'$'+Math.round(n));
 const pct=(n,d=1)=>(n*100).toFixed(d)+'%';
-const ico=(n)=>`<i data-lucide="${n}"></i>`;
+const ico=(n)=>'<svg class="lucide" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'+(ICONS[n]||'')+'</svg>';
 const fmtKm=n=>S.hide?'$•••':fmtK(n);
 const eyeBtn=()=>`<button class="icon-btn" data-act="eye" aria-pressed="${!!S.hide}" aria-label="${S.hide?'Show amounts':'Hide amounts'}">${ico(S.hide?'eye-off':'eye')}</button>`;
 const dayStr=s=>{const d=fromIso(s);return `${MON[d.getMonth()]} ${d.getDate()}`};
@@ -661,22 +664,21 @@ function vHome(){
   }
   const typ=V.type, base=tx.filter(t=>t.type===typ);
   if(V.lvl===1){
-    const by=Object.keys(ACCTS).map((k,i)=>({k,v:sum(base.filter(t=>t.acct===k),t=>t.amt),n:base.filter(t=>t.acct===k).length,c:RAMP[i*2]})).filter(a=>a.v>0).sort((a,b)=>b.v-a.v);
-    by.forEach(a=>a.c=ACCTS[a.k].c);
+    const by=[...S.accts.map(a=>a.id),''].map(k=>{const r=base.filter(t=>acctKey(t)===k);return {k,v:sum(r,t=>t.amt),n:r.length,c:acct(k).c}}).filter(a=>a.v>0).sort((a,b)=>b.v-a.v);
     const tot=sum(by,a=>a.v);
     return `
     <div class="top"><button class="icon-btn" data-act="back" aria-label="Back">${ico('chevron-left')}</button><h1>${typ==='out'?'Expense':'Income'}</h1><span class="chip">By account</span></div>
-    ${donut(by.map(a=>({k:a.k,v:a.v,c:a.c,l:ACCTS[a.k].n})),{sub:MONTH_FULL[TODAY.getMonth()],main:fmt(tot),foot:`${base.length} records`})}
+    ${donut(by.map(a=>({k:a.k,v:a.v,c:a.c,l:acct(a.k).n})),{sub:MONTH_FULL[TODAY.getMonth()],main:fmt(tot),foot:`${base.length} records`})}
     <div class="hint">${ico('pointer')}Tap an account for its records</div>
-    <div class="sec"><div class="list">${by.map(a=>`<button class="row" data-act="acct" data-v="${a.k}"><span class="ic cc" style="--cc:${a.c}">${ico(ACCTS[a.k].i)}</span><span class="grow fit">${ACCTS[a.k].n}</span><span class="pct">${pct(a.v/tot,0)}</span><span class="amt">${fmt2(a.v)}</span></button>`).join('')}</div></div>
-    <div class="sec"><div class="list">${['Credit','Debit','Cash'].map(k=>{const v=sum(by.filter(a=>ACCTS[a.k].k===k),a=>a.v);return `<div class="kv"><span class="mute">${k}</span><span class="v">${fmt2(v)}</span></div>`}).join('')}</div></div>`;
+    <div class="sec"><div class="list">${by.map(a=>`<button class="row" data-act="acct" data-v="${a.k}"><span class="ic cc" style="--cc:${a.c}">${ico(acct(a.k).i)}</span><span class="grow fit">${esc(acct(a.k).n)}</span><span class="pct">${pct(a.v/tot,0)}</span><span class="amt">${fmt2(a.v)}</span></button>`).join('')}</div></div>
+    <div class="sec"><div class="list">${['Credit','Debit','Cash','Other'].filter(k=>by.some(a=>acct(a.k).k===k)).map(k=>{const v=sum(by.filter(a=>acct(a.k).k===k),a=>a.v);return `<div class="kv"><span class="mute">${k}</span><span class="v">${fmt2(v)}</span></div>`}).join('')}</div></div>`;
   }
-  const rows=base.filter(t=>t.acct===V.acct);
+  const rows=base.filter(t=>acctKey(t)===V.acct);
   const cats=Object.keys(CATS).map(k=>({k,v:sum(rows.filter(t=>t.cat===k),t=>t.amt)})).filter(c=>c.v>0).sort((a,b)=>b.v-a.v);
   cats.forEach(c=>c.c=CATS[c.k].c);
   const tot=sum(cats,c=>c.v);
   return `
-    <div class="top"><button class="icon-btn" data-act="back" aria-label="Back">${ico('chevron-left')}</button><h1 class="fit">${ACCTS[V.acct].n}</h1><span class="chip">${ACCTS[V.acct].k}</span></div>
+    <div class="top"><button class="icon-btn" data-act="back" aria-label="Back">${ico('chevron-left')}</button><h1 class="fit">${esc(acct(V.acct).n)}</h1><span class="chip">${acct(V.acct).k}</span></div>
     ${donut(cats.map(c=>({k:c.k,v:c.v,c:c.c,l:CATS[c.k].n})),{sub:typ==='out'?'Spent':'Received',main:fmt(tot),foot:`${rows.length} records`})}
     <div class="chips" style="margin-top:12px">${cats.map(c=>`<span class="chip"><span class="sw" style="background:${c.c}"></span>${CATS[c.k].n} ${fmt(c.v)}</span>`).join('')}</div>
     <div class="sec"><span class="label">Records</span><div class="list">${[...rows].sort(byNewest).map(txnRow).join('')}</div></div>`;
@@ -778,7 +780,7 @@ function vTax(){
   }
   if(st===2){
     return `${head}
-    <div class="q">Your room</div><div class="mute small" style="margin-bottom:12px">Not sure? Tap ${ico('circle-help').replace('<i','<i style="width:14px;height:14px;vertical-align:-2px"')} to find it.</div>
+    <div class="q">Your room</div><div class="mute small" style="margin-bottom:12px">Not sure? Tap ${ico('circle-help').replace('<svg','<svg style="width:14px;height:14px;vertical-align:-2px"')} to find it.</div>
     <div class="list">
       ${mf('rrspRoom','piggy-bank','RRSP room',t.rrspRoom,'rrsp')}
       ${mf('tfsaRoom','shield','TFSA room',t.tfsaRoom,'tfsa')}
@@ -958,7 +960,7 @@ function closeSheet(){const w=$('#sheetWrap');w.classList.remove('open');$('.tab
 
 /* add income / expense */
 let A;
-function openAdd(){A={type:'out',amt:'',cat:'groceries',acct:'visa',when:'today',repeat:'Once',remind:'Off',m:''};drawAdd()}
+function openAdd(){A={type:'out',amt:'',cat:'groceries',acct:(S.accts.find(a=>a.id===S.lastAcct)||S.accts[0]||{}).id||'',when:'today',repeat:'Once',remind:'Off',m:''};drawAdd()}
 function drawAdd(){
   const cats=A.type==='out'?OUT_CATS:IN_CATS;
   const chipset=(name,vals)=>vals.map(v=>`<button class="chip${A[name]===v?' on':''}" data-act="aset" data-k="${name}" data-v="${v}">${v}</button>`).join('');
@@ -968,7 +970,7 @@ function drawAdd(){
   <div style="display:flex;flex-direction:column;gap:10px">
     <div class="field">${ico('store')}<input id="aName" placeholder="${A.type==='out'?'Where? e.g. Loblaws':'From? e.g. Payroll'}" value="${esc(A.m)}" maxlength="22"></div>
     <div class="catgrid" style="grid-template-columns:repeat(${cats.length},1fr)">${cats.map(c=>`<button class="cat" style="--cc:${CATS[c].c}" data-act="acat" data-v="${c}" aria-pressed="${A.cat===c}" aria-label="${CATS[c].n}" title="${CATS[c].n}">${ico(CATS[c].i)}</button>`).join('')}</div>
-    <div class="opt"><span class="lbl">${ico('wallet')}From</span><div class="chips">${Object.entries(ACCTS).map(([k,a])=>`<button class="chip${A.acct===k?' on':''}" data-act="aset" data-k="acct" data-v="${k}">${a.s}</button>`).join('')}</div></div>
+    <div class="opt"><span class="lbl">${ico('wallet')}From</span><div class="chips">${S.accts.map(a=>`<button class="chip${A.acct===a.id?' on':''}" data-act="aset" data-k="acct" data-v="${a.id}">${esc(a.n)}</button>`).join('')}<button class="chip${S.accts.length?'':' ice'}" data-act="acctnew" data-v="add" aria-label="Add account">${ico('plus')}${S.accts.length?'':'Add account'}</button></div></div>
     <div class="opt"><span class="lbl">${ico('calendar')}When</span><div class="chips">${WHEN().map(w=>`<button class="chip${A.when===w.k?' on':''}" data-act="aset" data-k="when" data-v="${w.k}">${w.l}</button>`).join('')}</div></div>
     <div class="opt"><span class="lbl">${ico('repeat')}Repeat</span><div class="chips">${chipset('repeat',['Once','Weekly','2 Wks','2×/Mo','Monthly'])}</div></div>
     <div class="opt"><span class="lbl">${ico('bell')}Remind</span><div class="chips">${chipset('remind',['Off','Day of','1 Day','3 Days'])}</div></div>
@@ -983,6 +985,7 @@ function saveAdd(){
   const amt=parseFloat(A.amt);if(!amt){toast('Enter an amount first','info');return}
   const name=($('#aName')?.value||'').trim()||CATS[A.cat].n;
   const w=WHEN().find(x=>x.k===A.when)||WHEN()[1], past=w.d<=TODAY;
+  if(A.acct)S.lastAcct=A.acct;
   if(past){const id=uid();S.txns.push({id,type:A.type,amt,cat:A.cat,acct:A.acct,m:name,date:iso(w.d),w:false});V.newId=id}
   if(!past||A.repeat!=='Once'){
     const next=past?addRepeat(A.repeat,w.d):w.d;
@@ -996,13 +999,16 @@ function saveAdd(){
 /* settings + backup */
 function openSettings(){
   openSheet(`<div class="top" style="height:40px"><span class="ic ice">${ico('settings')}</span><h2>Settings</h2><button class="icon-btn" data-act="close" aria-label="Close">${ico('x')}</button></div>
-  <span class="label">Backup</span>
+  <span class="label">Accounts</span>
+  <div class="list" style="background:var(--ink-3);margin-top:8px">${S.accts.map(a=>{const x=acct(a.id);return `<div class="row"><span class="ic cc" style="--cc:${a.c}">${ico(x.i)}</span><span class="grow fit">${esc(a.n)}</span><span class="mute small">${x.k}</span><button class="mini-act" data-act="acdel" data-v="${a.id}" aria-label="Remove ${esc(a.n)}">${ico('trash')}</button></div>`}).join('')}
+    <button class="row" data-act="acctnew" data-v="settings"><span class="ic ice">${ico('plus')}</span><span class="grow">Add account</span>${ico('chevron-right')}</button></div>
+  <div class="sec"><span class="label">Backup</span>
   <div class="list" style="background:var(--ink-3);margin-top:8px">
     <button class="row" data-act="export"><span class="ic ice">${ico('download')}</span><span class="grow">Export backup</span>${ico('chevron-right')}</button>
     <button class="row" data-act="import"><span class="ic">${ico('upload')}</span><span class="grow">Restore from backup</span>${ico('chevron-right')}</button>
   </div>
   <input type="file" id="importFile" accept="application/json,.json" hidden>
-  <div class="mute small" style="margin-top:8px;white-space:normal">Your data lives only on this phone. Export a backup now and then. You can load it into the App Store version later.</div>
+  <div class="mute small" style="margin-top:8px;white-space:normal">Your data lives only on this phone. Export a backup now and then. You can load it into the App Store version later.</div></div>
   <div class="sec"><span class="label">Apple Wallet</span><div class="mute small" style="margin-top:6px;white-space:normal">Logging Apple Pay taps automatically needs the App Store version. Until then, add records with +.</div></div>
   <div class="sec"><button class="btn ghost" data-act="wipe">${ico('trash')}Erase all data</button></div>`,'settings');
 }
@@ -1027,11 +1033,11 @@ function importData(file){const r=new FileReader();
 function openItem(kind,id){
   let title,icon,rows,cc='';
   if(kind==='txn'){const t=S.txns.find(x=>String(x.id)===String(id));if(!t)return;const c=CATS[t.cat];title=t.m;icon=c.i;cc=c.c;
-    rows=[['Amount',(t.type==='in'?'+':'')+fmt2(t.amt)],['Category',c.n],['Account',ACCTS[t.acct].n],['Date',dayStr(t.date)]]}
+    rows=[['Amount',(t.type==='in'?'+':'')+fmt2(t.amt)],['Category',c.n],['Account',acct(t.acct).n],['Date',dayStr(t.date)]]}
   else if(kind==='rem'){const r=S.rem.find(x=>x.id===id);if(!r)return;title=r.n;icon=remIcon(r.kind);
     rows=[['Amount',fmt2(r.amt)],['Due',`Day ${r.day} each month`],['Next',dayStr(iso(nextDay(r.day)))]]}
   else{const s=S.sched.find(x=>x.id===id);if(!s)return;const c=CATS[s.cat];title=s.m;icon=c.i;cc=c.c;
-    rows=[['Amount',(s.type==='in'?'+':'')+fmt2(s.amt)],['Repeat',s.repeat],['Next',dayStr(s.next)],['Account',ACCTS[s.acct].n]]}
+    rows=[['Amount',(s.type==='in'?'+':'')+fmt2(s.amt)],['Repeat',s.repeat],['Next',dayStr(s.next)],['Account',acct(s.acct).n]]}
   openSheet(`<div class="top" style="height:40px"><span class="ic${cc?' cc':' ice'}" ${cc?`style="--cc:${cc}"`:''}>${ico(icon)}</span><h2 class="fit">${esc(title)}</h2><button class="icon-btn" data-act="close" aria-label="Close">${ico('x')}</button></div>
   <div class="list" style="background:var(--ink-3)">${rows.map(([k,v])=>`<div class="kv"><span class="mute">${k}</span><span class="v">${esc(v)}</span></div>`).join('')}</div>
   <div style="margin-top:14px"><button class="btn ghost" data-act="delitem" data-k="${kind}" data-v="${id}">${ico('trash')}Delete</button></div>`,'item');
@@ -1042,6 +1048,21 @@ function delItem(kind,id){
   else S.sched=S.sched.filter(x=>x.id!==id);
   save();closeSheet();render(false);toast('Deleted','trash');
 }
+
+/* new payment account */
+let AC;
+function openAcctNew(from){AC={kind:'credit',from};drawAcctNew()}
+function drawAcctNew(){const nm=$('#acName')?.value||'';
+  openSheet(`<div class="top" style="height:40px">${AC.from==='add'?`<button class="icon-btn" data-act="acback" aria-label="Back">${ico('chevron-left')}</button>`:''}<h2>New account</h2><button class="icon-btn" data-act="close" aria-label="Close">${ico('x')}</button></div>
+  <div style="display:flex;flex-direction:column;gap:10px">
+  <div class="seg">${Object.entries(ACCT_KIND).map(([k,x])=>`<button data-act="ackind" data-v="${k}" aria-pressed="${AC.kind===k}">${x.k}</button>`).join('')}</div>
+  <div class="field">${ico('tag')}<input id="acName" placeholder="${{credit:'e.g. TD Visa',debit:'e.g. RBC Chequing',cash:'e.g. Cash'}[AC.kind]}" maxlength="18" value="${esc(nm)}"></div>
+  <button class="btn" data-act="acsave">${ico('check')}Add account</button></div>`,'acct')}
+function saveAcct(){const n=$('#acName').value.trim();if(!n){toast('Give it a name','info');return}
+  const used=S.accts.map(a=>a.c),c=ACCT_COLORS.find(x=>!used.includes(x))||'#717B87',id='a'+uid();
+  S.accts.push({id,n,kind:AC.kind,c});save();
+  if(AC.from==='add'){A.acct=id;drawAdd()}else openSettings();
+  toast(`${n} added`,'wallet')}
 
 /* investment sheets */
 let IV;
@@ -1172,6 +1193,11 @@ device.addEventListener('click',e=>{
     case 'acct': V.acct=v;V.lvl=2;render();break;
     case 'back': if(V.tab==='split'){V.grp=null}else{V.lvl=Math.max(0,V.lvl-1);V.sel=null}render();break;
     case 'settings': openSettings();break;
+    case 'acctnew': if(v==='add'&&$('#aName'))A.m=$('#aName').value; openAcctNew(v);break;
+    case 'ackind': AC.kind=v;drawAcctNew();break;
+    case 'acsave': saveAcct();break;
+    case 'acback': drawAdd();break;
+    case 'acdel':{const a=S.accts.find(x=>x.id===v);if(a&&confirm(`Remove ${a.n}? Its records stay, marked "No account".`)){S.accts=S.accts.filter(x=>x!==a);save();openSettings();render(false)}break}
     case 'invnew': openInvNew();break;
     case 'ivkind': IV.kind=v;drawInvNew();break;
     case 'ivsave': saveInvNew();break;
@@ -1278,9 +1304,9 @@ function selectSlice(){
 }
 window.addEventListener('resize',()=>{fitAll(document);placeInd()});
 function placeInd(){const a=document.querySelector('.tab[aria-current="page"]'),ind=$('#tabInd');if(a&&ind)ind.style.transform='translateX('+(a.offsetLeft+a.offsetWidth/2-20)+'px)'}
-function countUp(root){root.querySelectorAll('.dc-main,.hero-num,.lv').forEach(el=>{const m=el.textContent.match(/^([+−-]?)\$([\d,]+)(\.\d+)?$/);if(!m)return;
+function countUp(root){root.querySelectorAll('.dc-main,.hero-num').forEach(el=>{const m=el.textContent.match(/^([+−-]?)\$([\d,]+)(\.\d+)?$/);if(!m)return;
   const pre=m[1],n=parseFloat(m[2].replace(/,/g,'')+(m[3]||'')),d=m[3]?m[3].length-1:0,fin=el.textContent,t0=performance.now();
-  const step=now=>{const k=Math.min(1,(now-t0)/800),e=1-Math.pow(1-k,3);el.textContent=k<1?pre+fmt(n*e,d):fin;if(k<1)requestAnimationFrame(step)};requestAnimationFrame(step)})}
+  const step=now=>{const k=Math.min(1,(now-t0)/450),e=1-Math.pow(1-k,3);el.textContent=k<1?pre+fmt(n*e,d):fin;if(k<1)requestAnimationFrame(step)};requestAnimationFrame(step)})}
 device.addEventListener('pointerdown',e=>{const t=e.target.closest('.btn,.chip,button.row,.leg,.gcard,.prov,.key,.cat,.icon-btn,.seg button,.mini-act,.bell,.tab-add,.tab');if(!t)return;
   if(getComputedStyle(t).position==='static')t.classList.add('rp');else t.style.overflow='hidden';
   const r=t.getBoundingClientRect(),d=Math.max(r.width,r.height)*2.2,s=document.createElement('span');s.className='ripple';
