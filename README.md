@@ -27,7 +27,9 @@ Then visit http://localhost:8765. It shows a phone frame on desktop.
 | Area | What it does |
 |---|---|
 | Overview | Income vs expense donut. Tap a slice to select it; press and hold to open spending by account (Visa, Amex, Debit, Cash), then tap an account for its category donut and records. |
+| Investments | On Overview. Add TFSA / RRSP / FHSA / other accounts, log money put in or taken out, update what each is worth. Shows gain and this year's room left. |
 | Add (+) | Income or expense, keypad, category, account, date (yesterday, today, tomorrow, next 1st), repeat schedule. |
+| Privacy | Eye button on every screen hides all amounts, including the spend & save chart. |
 | Settings | Export / restore a backup file, erase all data. Apple Wallet auto-logging waits for the App Store version. |
 | Split | Create a group, add shared costs, see who owes whom, send a reminder through the iPhone share sheet, mark paid. |
 | Tax · Plan | Province picker (city lookup), 2026 combined tax buckets, income and costs, RRSP / TFSA / FHSA room with "how to find it" help, then a suggested split that never exceeds what is left after costs. |
@@ -43,3 +45,4 @@ Design rules: about 70% black, 25% white and 5% light blue for controls and moti
 - **Split nudges** need user accounts and push notifications (for example CloudKit sharing or Firebase).
 - **Legal:** All tax output is labelled as an educational estimate, not advice. Have a lawyer review the terms before App Store release.
 - **Notifications:** the web app cannot send bill alerts on iPhone without a push server, so reminders are only highlighted inside the app. Real alerts come with the App Store version.
+- **Cloud database (in progress):** `supabase/schema.sql` creates one row per user with row-level security, so each person can only read their own data. Sign-in and sync get switched on once the Supabase project exists.

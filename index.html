@@ -520,7 +520,7 @@ function plan(t){
    Save 10% of gross. RRSP room = 18% of $80k. TFSA 2026 = $7,000. FHSA = $8,000/yr. */
 const TORONTO = {salary:80000, monthly:3500, target:8000, rrspRoom:14400};
 const DEFAULT = ()=>({
-  txns:[], sched:[], rem:[], groups:[], people:{you:'You'},
+  txns:[], sched:[], rem:[], groups:[], inv:[], people:{you:'You'},
   tax:{step:0,prov:'ON',city:'Toronto',salary:TORONTO.salary,bonus:0,pt:0,other:0,freq:26,monthly:TORONTO.monthly,target:TORONTO.target,
        rrspRoom:TORONTO.rrspRoom,tfsaRoom:7000,home:true,fhsaRoom:8000,mode:'bal'},
   fc:{salary:TORONTO.salary,save:.2,ret:.05}
@@ -528,7 +528,7 @@ const DEFAULT = ()=>({
 const KEY='glacio-v2';
 let S; try{S=JSON.parse(localStorage.getItem(KEY))}catch(e){S=null}
 if(!S||!S.txns)S=DEFAULT();
-function bindState(){const d=DEFAULT();['txns','sched','rem','groups'].forEach(k=>{if(!Array.isArray(S[k]))S[k]=[]});
+function bindState(){const d=DEFAULT();['txns','sched','rem','groups','inv'].forEach(k=>{if(!Array.isArray(S[k]))S[k]=[]});
   S.people=S.people||{you:'You'};S.tax={...d.tax,...(S.tax||{})};S.fc={...d.fc,...(S.fc||{})};PEOPLE=S.people}
 bindState();
 const V={tview:'plan',fcYr:null,tab:'home',lvl:0,type:'out',acct:null,sel:null,grp:null,nudged:{},newId:null};
@@ -616,6 +616,24 @@ function ssChart(){
 function ssPick(i){if(i===V.ssSel)return;V.ssSel=i;const D=ssData(),r=$('#ssRead');if(r)r.innerHTML=ssRead(D[i]);
   document.querySelectorAll('#screen .ssm').forEach(g=>g.classList.toggle('dim',+g.dataset.ss!==i));fitAll($('#screen'))}
 
+/* ---------- investments: what you put in + what it's worth ----------
+   account = {id, n, kind, moves:[{id,date,amt(+in/-out),open?}], vals:[{date,v}]}
+   open:true marks the starting amount, so it doesn't count against this year's room. */
+const INVK={tfsa:{n:'TFSA',i:'shield',c:SER.tfsa,room:'tfsaRoom'},rrsp:{n:'RRSP',i:'piggy-bank',c:SER.rrsp,room:'rrspRoom'},
+  fhsa:{n:'FHSA',i:'key-round',c:SER.fhsa,room:'fhsaRoom'},nonreg:{n:'Other',i:'trending-up',c:SER.cash}};
+const lastVal=a=>[...a.vals].sort((x,y)=>x.date.localeCompare(y.date)).pop();
+function invStats(a){const put=sum(a.moves,m=>m.amt),l=lastVal(a),val=l?l.v:put;return {put,val,gain:val-put,asOf:l?l.date:null}}
+function roomLeft(kind){const k=INVK[kind];if(!k.room)return null;const yr=String(TODAY.getFullYear());
+  const used=sum(S.inv.filter(a=>a.kind===kind),a=>sum(a.moves.filter(m=>!m.open&&m.amt>0&&m.date.slice(0,4)===yr),m=>m.amt));
+  return (S.tax[k.room]||0)-used}
+const signed=n=>(S.hide?'':n>=0?'+':'')+fmt(n);
+function invSection(){
+  const rows=S.inv.map(a=>{const k=INVK[a.kind],st=invStats(a);
+    return `<button class="row" data-act="inv" data-v="${a.id}"><span class="ic cc" style="--cc:${k.c}">${ico(k.i)}</span><span class="grow fit">${esc(a.n)}</span><span class="mute small num">${signed(st.gain)}</span><span class="amt">${fmt(st.val)}</span></button>`}).join('');
+  const tot=sum(S.inv,a=>invStats(a).val),g=sum(S.inv,a=>invStats(a).gain);
+  return `<div class="sec"><div class="sec-h"><span class="label">Investments</span><button class="chip" data-act="invnew">${ico('plus')}Add</button></div>
+  <div class="list">${rows||empty('Add a TFSA, RRSP, FHSA or other account','trending-up')}${S.inv.length>1?`<div class="kv"><span class="mute">Total · ${signed(g)}</span><span class="v">${fmt(tot)}</span></div>`:''}</div></div>`}
+
 /* ---------- views ---------- */
 function vHome(){
   const tx=monthTx(), inc=sum(tx.filter(t=>t.type==='in'),t=>t.amt), out=sum(tx.filter(t=>t.type==='out'),t=>t.amt);
@@ -635,6 +653,7 @@ function vHome(){
     </div>
     <div class="sec"><div class="sec-h"><span class="label">Spend &amp; save</span><span class="chip">6 months</span></div>
       <div class="list" style="padding:14px 12px 8px">${ssChart()}</div></div>
+    ${invSection()}
     <div class="sec"><div class="sec-h"><span class="label">Upcoming</span><button class="chip" data-act="tab" data-v="bills">All${ico('chevron-right')}</button></div>
       <div class="list">${up.map(u=>`<div class="row"><span class="ic${u.days<=7?' ice':''}">${ico(u.i)}</span><span class="grow fit">${esc(u.n)}</span><span class="days${u.days<=7?' soon':''}">${u.days===0?'Today':u.days+'d'}</span><span class="amt">${u.type==='in'?'+':''}${fmt2(u.amt)}</span></div>`).join('')||empty('Nothing due soon','bell')}</div></div>
     <div class="sec"><div class="sec-h"><span class="label">Recent</span><span class="chip">${tx.length} this month</span></div>
@@ -1024,6 +1043,53 @@ function delItem(kind,id){
   save();closeSheet();render(false);toast('Deleted','trash');
 }
 
+/* investment sheets */
+let IV;
+function openInvNew(){IV={kind:'tfsa'};drawInvNew()}
+function drawInvNew(){const nm=$('#ivName')?.value||'',v=$('#ivVal')?.value||'',p=$('#ivPut')?.value||'';
+  openSheet(`<div class="top" style="height:40px"><h2>New investment account</h2><button class="icon-btn" data-act="close" aria-label="Close">${ico('x')}</button></div>
+  <div style="display:flex;flex-direction:column;gap:10px">
+  <div class="seg">${Object.entries(INVK).map(([k,x])=>`<button data-act="ivkind" data-v="${k}" aria-pressed="${IV.kind===k}">${x.n}</button>`).join('')}</div>
+  <div class="field">${ico('tag')}<input id="ivName" placeholder="Name, e.g. Wealthsimple TFSA" maxlength="24" value="${esc(nm)}"></div>
+  <div class="field">${ico('trending-up')}<input id="ivVal" inputmode="decimal" placeholder="What it's worth today" value="${esc(v)}"></div>
+  <div class="field">${ico('piggy-bank')}<input id="ivPut" inputmode="decimal" placeholder="Total you've put in so far" value="${esc(p)}"></div>
+  <div class="mute small" style="white-space:normal">Gain = what it's worth minus what you put in. Not sure what you put in? Leave it empty.</div>
+  <button class="btn" data-act="ivsave">${ico('check')}Add account</button></div>`,'invnew')}
+function saveInvNew(){
+  const n=$('#ivName').value.trim()||INVK[IV.kind].n,val=parseMoney($('#ivVal').value),pr=$('#ivPut').value.trim(),put=pr?parseMoney(pr):val;
+  S.inv.push({id:'i'+uid(),n,kind:IV.kind,moves:put?[{id:'m'+uid(),date:TODAY_ISO,amt:put,open:true}]:[],vals:[{date:TODAY_ISO,v:val}]});
+  save();closeSheet();render(false);toast(`${n} added`,'trending-up')}
+function openInv(id,mode){
+  const a=S.inv.find(x=>x.id===id);if(!a)return;const k=INVK[a.kind],st=invStats(a),rl=roomLeft(a.kind);
+  const hist=[...a.moves.map(m=>({d:m.date,t:m.open?'Starting amount':m.amt>=0?'Put in':'Took out',v:m.amt,sg:!m.open})),...a.vals.map(v=>({d:v.date,t:'Worth',v:v.v}))]
+    .sort((x,y)=>y.d.localeCompare(x.d)).slice(0,8);
+  const ph={in:'Amount you put in',out:'Amount you took out',val:"What it's worth today"}[mode];
+  const form=mode?`<div class="field" style="margin-top:12px">${ico(mode==='val'?'trending-up':'dollar-sign')}<input id="ivAmt" inputmode="decimal" placeholder="${ph}"></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px"><button class="btn ghost" data-act="inv" data-v="${a.id}">Cancel</button><button class="btn" data-act="ivdo" data-k="${mode}" data-v="${a.id}">${ico('check')}Save</button></div>`
+   :`<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:12px">
+    <button class="btn" style="font-size:14px" data-act="ivmode" data-k="in" data-v="${a.id}">${ico('plus')}Put in</button>
+    <button class="btn ghost" style="font-size:14px" data-act="ivmode" data-k="out" data-v="${a.id}">Take out</button>
+    <button class="btn ghost" style="font-size:14px" data-act="ivmode" data-k="val" data-v="${a.id}">Worth</button></div>`;
+  openSheet(`<div class="top" style="height:40px"><span class="ic cc" style="--cc:${k.c}">${ico(k.i)}</span><h2 class="fit">${esc(a.n)}</h2><button class="icon-btn" data-act="close" aria-label="Close">${ico('x')}</button></div>
+  <div class="list" style="background:var(--ink-3)">
+    <div class="kv"><span class="mute">Worth${st.asOf?' · '+dayStr(st.asOf):''}</span><span class="v">${fmt(st.val)}</span></div>
+    <div class="kv"><span class="mute">You put in</span><span class="v">${fmt(st.put)}</span></div>
+    <div class="kv"><span class="mute">Gain</span><span class="v">${signed(st.gain)}${st.put>0&&!S.hide?` <span class="mute small">${(st.gain/st.put*100).toFixed(1)}%</span>`:''}</span></div>
+    ${rl!==null?`<div class="kv"><span class="mute">${k.n} room left · ${TODAY.getFullYear()}</span><span class="v">${fmt(rl)}</span></div>`:''}
+  </div>${form}
+  <div class="sec"><span class="label">History</span><div class="list" style="background:var(--ink-3);margin-top:8px">${hist.map(h=>`<div class="kv"><span class="mute">${dayStr(h.d)} · ${h.t}</span><span class="v">${h.sg?signed(h.v):fmt(h.v)}</span></div>`).join('')}</div></div>
+  ${rl!==null?`<div class="mute small" style="margin-top:8px;white-space:normal">Room left = the ${k.n} room you entered in Tax, minus what you put in this year.</div>`:''}
+  <div class="sec"><button class="btn ghost" data-act="ivdel" data-v="${a.id}">${ico('trash')}Delete account</button></div>`,'inv');
+  if(mode)setTimeout(()=>{const i=$('#ivAmt');i&&i.focus()},350)}
+function invDo(id,mode){
+  const a=S.inv.find(x=>x.id===id),raw=($('#ivAmt')?.value||'').trim(),amt=parseMoney(raw);if(!a)return;
+  if(!raw||(mode!=='val'&&!amt)){toast('Enter an amount','info');return}
+  const setToday=v=>{a.vals=a.vals.filter(x=>x.date!==TODAY_ISO);a.vals.push({date:TODAY_ISO,v:Math.max(0,Math.round(v*100)/100)})};
+  if(mode==='val')setToday(amt);
+  else{const d=mode==='in'?amt:-amt;a.moves.push({id:'m'+uid(),date:TODAY_ISO,amt:d});const l=lastVal(a);if(l)setToday(l.v+d)}
+  save();render(false);openInv(id);
+  toast(mode==='val'?'Worth updated':mode==='in'?`${fmt2(amt)} put in`:`${fmt2(amt)} taken out`,'trending-up')}
+
 /* new split group */
 function openNewGrp(){
   openSheet(`<div class="top" style="height:40px"><h2>New group</h2><button class="icon-btn" data-act="close" aria-label="Close">${ico('x')}</button></div>
@@ -1106,6 +1172,13 @@ device.addEventListener('click',e=>{
     case 'acct': V.acct=v;V.lvl=2;render();break;
     case 'back': if(V.tab==='split'){V.grp=null}else{V.lvl=Math.max(0,V.lvl-1);V.sel=null}render();break;
     case 'settings': openSettings();break;
+    case 'invnew': openInvNew();break;
+    case 'ivkind': IV.kind=v;drawInvNew();break;
+    case 'ivsave': saveInvNew();break;
+    case 'inv': openInv(v);break;
+    case 'ivmode': openInv(v,b.dataset.k);break;
+    case 'ivdo': invDo(v,b.dataset.k);break;
+    case 'ivdel':{const a=S.inv.find(x=>x.id===v);if(a&&confirm(`Delete ${a.n} and its history?`)){S.inv=S.inv.filter(x=>x!==a);save();closeSheet();render(false);toast('Account deleted','trash')}break}
     case 'eye': S.hide=!S.hide;save();render(false);toast(S.hide?'Amounts hidden':'Amounts shown',S.hide?'eye-off':'eye');break;
     case 'ssm': ssPick(+v);break;
     case 'export': exportData();break;
