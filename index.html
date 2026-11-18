@@ -681,7 +681,7 @@ function syncText(){if(!AUTH)return '';if(AUTH.lastErr)return 'Not synced · '+A
    Save 10% of gross. RRSP room = 18% of $80k. TFSA 2026 = $7,000. FHSA = $8,000/yr. */
 const TORONTO = {salary:80000, monthly:3500, target:8000, rrspRoom:14400};
 const DEFAULT = ()=>({
-  txns:[], sched:[], rem:[], groups:[], inv:[], accts:[], people:{you:'You'}, biz:{on:false}, tb:{...TB_DEF},
+  txns:[], sched:[], rem:[], groups:[], inv:[], accts:[], people:{you:'You'}, biz:{on:false,list:[]}, tb:{...TB_DEF},
   tax:{step:0,prov:'ON',city:'Toronto',salary:TORONTO.salary,bonus:0,pt:0,other:0,freq:26,monthly:TORONTO.monthly,target:TORONTO.target,
        rrspRoom:TORONTO.rrspRoom,tfsaRoom:7000,home:true,fhsaRoom:8000,mode:'bal'},
   fc:{salary:TORONTO.salary,save:.2,ret:.05}
@@ -692,7 +692,10 @@ if(!S||!S.txns)S=DEFAULT();
 function bindState(){const d=DEFAULT();['txns','sched','rem','groups','inv'].forEach(k=>{if(!Array.isArray(S[k]))S[k]=[]});
   if(!Array.isArray(S.accts)){const used=[...new Set([...S.txns,...S.sched].map(t=>t.acct))].filter(k=>LEGACY_ACCTS[k]);
     S.accts=used.map((k,i)=>({id:k,n:LEGACY_ACCTS[k].n,kind:LEGACY_ACCTS[k].kind,c:ACCT_COLORS[i]}))}
-  S.biz=S.biz||{on:false};S.tb={...TB_DEF,...(S.tb||{})};S.people=S.people||{you:'You'};S.tax={...d.tax,...(S.tax||{})};S.fc={...d.fc,...(S.fc||{})};PEOPLE=S.people}
+  S.biz=S.biz||{on:false};if(!Array.isArray(S.biz.list))S.biz.list=[];
+  if(!S.biz.list.length&&(S.biz.on||S.txns.some(t=>t.biz)))S.biz.list.push({id:'bz1',n:'My business',bn:'',c:ACCT_COLORS[0]});
+  {const b0=S.biz.list[0];if(b0)[...S.txns,...S.sched].forEach(t=>{if(t.biz&&t.bizId===undefined)t.bizId=b0.id})}
+S.tb={...TB_DEF,...(S.tb||{})};S.people=S.people||{you:'You'};S.tax={...d.tax,...(S.tax||{})};S.fc={...d.fc,...(S.fc||{})};PEOPLE=S.people}
 bindState();
 const V={tview:'plan',fcYr:null,tab:'home',lvl:0,type:'out',acct:null,sel:null,grp:null,nudged:{},newId:null};
 function save(){try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}markDirty()}
@@ -710,7 +713,7 @@ function addRepeat(rep,dt){const d=new Date(dt.getFullYear(),dt.getMonth(),dt.ge
 /* scheduled income/expenses log themselves once their day arrives */
 function rollSched(){let n=0;
   S.sched=S.sched.filter(s=>{let d=fromIso(s.next),g=0;
-    while(d<=TODAY&&g++<500){S.txns.push({id:uid(),type:s.type,amt:s.amt,cat:s.cat,acct:s.acct,m:s.m,date:iso(d),w:false,biz:s.biz,bcat:s.bcat,slip:s.slip});n++;
+    while(d<=TODAY&&g++<500){S.txns.push({id:uid(),type:s.type,amt:s.amt,cat:s.cat,acct:s.acct,m:s.m,date:iso(d),w:false,biz:s.biz,bizId:s.bizId,bcat:s.bcat,slip:s.slip});n++;
       const nx=addRepeat(s.repeat,d);if(!nx)return false;d=nx}
     s.next=iso(d);return true});
   if(n)save();return n}
@@ -1140,7 +1143,7 @@ function drawAdd(){
     <div class="catgrid" style="grid-template-columns:repeat(${cats.length},1fr)">${cats.map(c=>`<button class="cat" style="--cc:${CATS[c].c}" data-act="acat" data-v="${c}" aria-pressed="${A.cat===c}" aria-label="${CATS[c].n}" title="${CATS[c].n}">${ico(CATS[c].i)}</button>`).join('')}</div>
     <div class="opt"><span class="lbl">${ico('wallet')}From</span><div class="chips">${S.accts.map(a=>`<button class="chip${A.acct===a.id?' on':''}" data-act="aset" data-k="acct" data-v="${a.id}">${esc(a.n)}</button>`).join('')}<button class="chip${S.accts.length?'':' ice'}" data-act="acctnew" data-v="add" aria-label="Add account">${ico('plus')}${S.accts.length?'':'Add account'}</button></div></div>
     <div class="opt"><span class="lbl">${ico('calendar')}When</span><div class="chips">${WHEN().map(w=>`<button class="chip${A.when===w.k?' on':''}" data-act="aset" data-k="when" data-v="${w.k}">${w.l}</button>`).join('')}<label class="chip datechip${A.when==='custom'?' on':''}">${ico('calendar')}${A.when==='custom'&&A.date?dayStr(A.date):'Pick date'}<input type="date" id="aDate" value="${A.date||TODAY_ISO}" aria-label="Pick a date"></label></div></div>
-    ${S.biz.on?`<div class="opt"><span class="lbl">${ico('briefcase')}For</span><div class="chips"><button class="chip${A.biz?'':' on'}" data-act="abiz" data-v="0">Personal</button><button class="chip${A.biz?' on':''}" data-act="abiz" data-v="1">Business</button></div></div>
+    ${S.biz.on?`<div class="opt"><span class="lbl">${ico('briefcase')}For</span><div class="chips"><button class="chip${A.biz?'':' on'}" data-act="abiz" data-v="0">Personal</button>${S.biz.list.map(b=>`<button class="chip${A.biz&&A.bizId===b.id?' on':''}" data-act="abiz" data-v="${b.id}"><span class="sw" style="background:${b.c}"></span>${esc(b.n)}</button>`).join('')}<button class="chip" data-act="biznew" data-v="add" aria-label="Add business">${ico('plus')}</button></div></div>
     ${A.biz?(A.type==='out'?`<div class="opt"><span class="lbl">${ico('tag')}CRA</span><div class="chips">${Object.entries(BCAT).map(([k,x])=>`<button class="chip${A.bcat===k?' on':''}" data-act="aset" data-k="bcat" data-v="${k}">${x.s}</button>`).join('')}</div></div>
     <div class="opt"><span class="lbl">${ico('receipt')}HST</span><div class="hstin"><span class="mute">$</span><input id="aHst" inputmode="decimal" placeholder="Tax paid · optional" value="${esc(A.hst||'')}"></div></div>`
      :`<div class="opt"><span class="lbl">${ico('tag')}Slip</span><div class="chips">${Object.entries(BINC).map(([k,x])=>`<button class="chip${A.slip===k?' on':''}" data-act="aset" data-k="slip" data-v="${k}">${x.s}</button>`).join('')}</div></div>`):''}`:''}
@@ -1162,27 +1165,27 @@ function whenDate(){if(A.when==='custom'&&A.date)return fromIso(A.date);return (
 function openEdit(kind,id){
   const t=kind==='txn'?S.txns.find(x=>String(x.id)===String(id)):S.sched.find(x=>x.id===id);if(!t)return;
   A={type:t.type,amt:String(+t.amt.toFixed(2)),cat:t.cat,acct:t.acct||'',when:'custom',date:kind==='txn'?t.date:t.next,
-     repeat:kind==='txn'?'Once':t.repeat,remind:t.remind||'Off',m:t.m,edit:{kind,id},fresh:true,biz:!!t.biz,bcat:t.bcat||'other',slip:t.slip||'t4a',hst:t.hst?String(t.hst):'',rc:(t.rc||[]).map(id=>({id})),rcOrig:[...(t.rc||[])]};drawAdd()}
+     repeat:kind==='txn'?'Once':t.repeat,remind:t.remind||'Off',m:t.m,edit:{kind,id},fresh:true,biz:!!t.biz,bizId:t.bizId,bcat:t.bcat||'other',slip:t.slip||'t4a',hst:t.hst?String(t.hst):'',rc:(t.rc||[]).map(id=>({id})),rcOrig:[...(t.rc||[])]};drawAdd()}
 function WHEN(){const n1=new Date(TODAY.getFullYear(),TODAY.getMonth()+1,1);
   return [{k:'yesterday',l:'Yesterday',d:addDays(TODAY,-1)},{k:'today',l:'Today',d:TODAY},{k:'tomorrow',l:'Tomorrow',d:addDays(TODAY,1)},{k:'next1',l:`${MON[n1.getMonth()]} 1`,d:n1}]}
 function saveAdd(){
   const amt=parseFloat(A.amt);if(!amt){toast('Enter an amount first','info');return}
   const name=($('#aName')?.value||'').trim()||CATS[A.cat].n;
   syncA();const d=whenDate(), past=d<=TODAY, w={d};
-  const bz=S.biz.on&&A.biz?{biz:true,bcat:A.type==='out'?(A.bcat||'other'):undefined,slip:A.type==='in'?(A.slip||'t4a'):undefined,hst:A.type==='out'?(parseMoney(A.hst||'')||0):0}:{biz:false,bcat:undefined,slip:undefined,hst:0};
+  const bz=S.biz.on&&A.biz?{biz:true,bizId:A.bizId||(S.biz.list[0]||{}).id,bcat:A.type==='out'?(A.bcat||'other'):undefined,slip:A.type==='in'?(A.slip||'t4a'):undefined,hst:A.type==='out'?(parseMoney(A.hst||'')||0):0}:{biz:false,bizId:undefined,bcat:undefined,slip:undefined,hst:0};
   const rcIds=(A.rc||[]).map(r=>r.id);(A.rc||[]).filter(r=>r.isNew).forEach(r=>RDB.put(r.id,r.blob).catch(()=>{}));
   (A.rcOrig||[]).filter(id=>!rcIds.includes(id)).forEach(rcDelete);
   if(rcIds.length&&AUTH)setTimeout(()=>rcSyncPending().catch(()=>{}),800);
   if(A.acct)S.lastAcct=A.acct;
   if(A.edit){
     if(A.edit.kind==='txn'){const t=S.txns.find(x=>String(x.id)===String(A.edit.id));if(t)Object.assign(t,{type:A.type,amt,cat:A.cat,acct:A.acct,m:name,date:iso(d),...bz,rc:rcIds});V.newId=t&&t.id}
-    else{const s2=S.sched.find(x=>x.id===A.edit.id);if(s2){Object.assign(s2,{type:A.type,amt,cat:A.cat,acct:A.acct,m:name,next:iso(d),repeat:A.repeat,remind:A.remind,biz:bz.biz,bcat:bz.bcat,slip:bz.slip});if(past)rollSched()}}
+    else{const s2=S.sched.find(x=>x.id===A.edit.id);if(s2){Object.assign(s2,{type:A.type,amt,cat:A.cat,acct:A.acct,m:name,next:iso(d),repeat:A.repeat,remind:A.remind,biz:bz.biz,bizId:bz.bizId,bcat:bz.bcat,slip:bz.slip});if(past)rollSched()}}
     save();closeSheet();toast('Changes saved','check');render(false);return}
   if(past){const id=uid();S.txns.push({id,type:A.type,amt,cat:A.cat,acct:A.acct,m:name,date:iso(w.d),w:false,...bz,rc:rcIds});V.newId=id}
   else if(rcIds.length){rcIds.forEach(rcDelete)} // a future payment has no receipt yet
   if(!past||A.repeat!=='Once'){
     const next=past?addRepeat(A.repeat,w.d):w.d;
-    S.sched.push({id:'s'+uid(),type:A.type,m:name,amt,cat:A.cat,acct:A.acct,next:iso(next),repeat:A.repeat,remind:A.remind,biz:bz.biz,bcat:bz.bcat,slip:bz.slip});
+    S.sched.push({id:'s'+uid(),type:A.type,m:name,amt,cat:A.cat,acct:A.acct,next:iso(next),repeat:A.repeat,remind:A.remind,biz:bz.biz,bizId:bz.bizId,bcat:bz.bcat,slip:bz.slip});
   }
   save();closeSheet();
   toast(past?`${name} ${fmt2(amt)} saved`:`${name} scheduled`, past?'check':'calendar');
@@ -1248,26 +1251,51 @@ const BCAT={adv:{n:'Advertising',s:'Ads',l:'8521'},meals:{n:'Meals & entertainme
   delivery:{n:'Delivery & shipping',s:'Shipping',l:'9275'},vehicle:{n:'Motor vehicle expenses',s:'Vehicle',l:'9281'},home:{n:'Business-use-of-home',s:'Home office',l:'9945'},
   equip:{n:'Equipment (capital cost allowance)',s:'Equipment',l:'CCA'},other:{n:'Other expenses (software, subscriptions…)',s:'Other',l:'9270'}};
 const BINC={t4a:{n:'T4A box 048 · fees for services',s:'T4A 048'},t4ac:{n:'T4A box 020 · commissions',s:'T4A 020'},noslip:{n:'No slip (cash, e-Transfer, sales)',s:'No slip'},other:{n:'Other business income',s:'Other'}};
-const bizRecs=yr=>S.txns.filter(t=>t.biz&&t.date&&t.date.slice(0,4)===String(yr));
+const bizOf=id=>S.biz.list.find(b=>b.id===id);
+const bizRecs=(yr,bid='all')=>S.txns.filter(t=>t.biz&&t.date&&t.date.slice(0,4)===String(yr)&&(bid==='all'||(bid==='none'?!bizOf(t.bizId):t.bizId===bid)));
+function bizTot(R){const inc=R.filter(t=>t.type==='in'),exp=R.filter(t=>t.type==='out');
+  return {inc,exp,ti:sum(inc,t=>t.amt),te:sum(exp,t=>t.amt),ded:sum(exp,t=>t.amt*(BCAT[t.bcat]&&BCAT[t.bcat].half?.5:1)),hst:sum(exp,t=>t.hst||0)}}
+function bizTargets(yr){const L=S.biz.list.map(b=>({id:b.id,n:b.n,bn:b.bn,c:b.c}));if(bizRecs(yr,'none').length)L.push({id:'none',n:'No business picked',bn:'',c:'#717B87'});return L}
+function bizSel(yr){const T=bizTargets(yr);if(V.bizSel&&(V.bizSel==='all'||T.some(x=>x.id===V.bizSel)))return V.bizSel;return T.length===1?T[0].id:'all'}
 function vBiz(){
-  const y0=TODAY.getFullYear(),yr=V.bizYr||y0,R=bizRecs(yr),inc=R.filter(t=>t.type==='in'),exp=R.filter(t=>t.type==='out');
-  const ti=sum(inc,t=>t.amt),te=sum(exp,t=>t.amt),hst=sum(exp,t=>t.hst||0),ded=sum(exp,t=>t.amt*(BCAT[t.bcat]&&BCAT[t.bcat].half?.5:1));
-  const nrc=sum(exp,t=>(t.rc||[]).length),miss=exp.filter(t=>!(t.rc||[]).length).length;
-  const byE=Object.keys(BCAT).map(k=>{const r=exp.filter(t=>(BCAT[t.bcat]?t.bcat:'other')===k);return {k,v:sum(r,t=>t.amt),n:r.length}}).filter(x=>x.n);
-  const byI=Object.keys(BINC).map(k=>{const r=inc.filter(t=>(BINC[t.slip]?t.slip:'noslip')===k);return {k,v:sum(r,t=>t.amt),n:r.length}}).filter(x=>x.n);
+  const y0=TODAY.getFullYear(),yr=V.bizYr||y0,T=bizTargets(yr),sel=bizSel(yr),R=bizRecs(yr,sel),X=bizTot(R);
+  const cur=T.find(x=>x.id===sel);
+  const nrc=sum(X.exp,t=>(t.rc||[]).length),miss=X.exp.filter(t=>!(t.rc||[]).length).length;
+  const byE=Object.keys(BCAT).map(k=>{const r=X.exp.filter(t=>(BCAT[t.bcat]?t.bcat:'other')===k);return {k,v:sum(r,t=>t.amt),n:r.length}}).filter(x=>x.n);
+  const byI=Object.keys(BINC).map(k=>{const r=X.inc.filter(t=>(BINC[t.slip]?t.slip:'noslip')===k);return {k,v:sum(r,t=>t.amt),n:r.length}}).filter(x=>x.n);
+  const picker=T.length>1?[{id:'all',n:'All'},...T]:T;
   return `<div class="top"><h1>Tax</h1>${eyeBtn()}</div>${taxSeg()}
-  <div class="chips" style="margin-bottom:12px">${[y0,y0-1].map(y=>`<button class="chip${y===yr?' on':''}" data-act="bizyr" data-v="${y}">${y}</button>`).join('')}</div>
-  <div class="legend" style="margin-top:0"><div class="leg"><span class="lt">${ico('arrow-down-left')}Income</span><span class="lv fit">${fmt2(ti)}</span></div><div class="leg"><span class="lt">${ico('arrow-up-right')}Expenses</span><span class="lv fit">${fmt2(te)}</span></div></div>
+  <div class="chips" style="margin-bottom:8px">${picker.map(b=>`<button class="chip${b.id===sel?' on':''}" data-act="bizsel" data-v="${b.id}">${b.c?`<span class="sw" style="background:${b.c}"></span>`:''}${esc(b.n)}</button>`).join('')}<button class="chip" data-act="biznew" data-v="biz" aria-label="Add business">${ico('plus')}</button></div>
+  <div class="chips" style="margin-bottom:12px">${[y0,y0-1].map(y=>`<button class="chip${y===yr?' on':''}" data-act="bizyr" data-v="${y}">${y}</button>`).join('')}${cur&&cur.bn?`<span class="chip">BN ${esc(cur.bn)}</span>`:''}</div>
+  <div class="legend" style="margin-top:0"><div class="leg"><span class="lt">${ico('arrow-down-left')}Income</span><span class="lv fit">${fmt2(X.ti)}</span></div><div class="leg"><span class="lt">${ico('arrow-up-right')}Expenses</span><span class="lv fit">${fmt2(X.te)}</span></div></div>
   <div class="list" style="margin-top:10px">
-    <div class="kv"><span class="mute">Net (meals at 50%)</span><span class="v">${fmt2(ti-ded)}</span></div>
-    <div class="kv"><span class="mute">HST / GST you paid</span><span class="v">${fmt2(hst)}</span></div>
+    <div class="kv"><span class="mute">Net (meals at 50%)</span><span class="v">${fmt2(X.ti-X.ded)}</span></div>
+    <div class="kv"><span class="mute">HST / GST you paid</span><span class="v">${fmt2(X.hst)}</span></div>
     <div class="kv"><span class="mute">Receipts</span><span class="v">${nrc} attached${miss?` · ${miss} missing`:''}</span></div></div>
-  <div class="sec"><span class="label">Income</span><div class="list">${byI.map(x=>`<div class="row"><span class="grow fit">${BINC[x.k].n}</span><span class="mute small num">${x.n}</span><span class="amt">${fmt2(x.v)}</span></div>`).join('')||empty('Add income with +, then switch on Business','briefcase')}</div></div>
+  ${sel==='all'?`<div class="sec"><span class="label">Each business · one T2125 each</span><div class="list">${T.map(b=>{const t=bizTot(bizRecs(yr,b.id));return `<button class="row" data-act="bizsel" data-v="${b.id}"><span class="sw" style="background:${b.c}"></span><span class="grow fit">${esc(b.n)}</span><span class="mute small num">${fmt2(t.ti)} in · ${fmt2(t.te)} out</span><span class="amt">${fmt2(t.ti-t.ded)}</span></button>`}).join('')}</div></div>`:''}
+  <div class="sec"><span class="label">Income</span><div class="list">${byI.map(x=>`<div class="row"><span class="grow fit">${BINC[x.k].n}</span><span class="mute small num">${x.n}</span><span class="amt">${fmt2(x.v)}</span></div>`).join('')||empty('Add income with +, then pick a business','briefcase')}</div></div>
   <div class="sec"><span class="label">Expenses · CRA T2125 lines</span><div class="list">${byE.map(x=>`<div class="row"><span class="mute small num" style="width:36px;flex:none">${BCAT[x.k].l}</span><span class="grow fit">${BCAT[x.k].n}${BCAT[x.k].half?' (50%)':''}</span><span class="mute small num">${x.n}</span><span class="amt">${fmt2(x.v)}</span></div>`).join('')||empty('No business expenses yet','receipt')}</div></div>
-  <div class="sec"><span class="label">For your accountant</span><div style="display:grid;gap:8px;margin-top:8px">
+  <div class="sec"><span class="label">For your accountant${sel==='all'&&T.length>1?' · every business':cur?' · '+esc(cur.n):''}</span><div style="display:grid;gap:8px;margin-top:8px">
     <button class="btn" data-act="pdf" data-v="exp">${ico('download')}Expenses + receipts PDF</button>
     <button class="btn ghost" data-act="pdf" data-v="inc">${ico('download')}Income PDF</button></div></div>
-  <div class="sec"><div class="legal">${ico('info')}<span>Sorted by CRA T2125 line. Meals count at 50%. Equipment usually goes to capital cost allowance; your accountant decides. Not tax advice.</span></div></div>`}
+  <div class="sec"><div class="legal">${ico('info')}<span>Each business is reported on its own T2125. Meals count at 50%. Equipment usually goes to capital cost allowance; your accountant decides. Not tax advice.</span></div></div>`}
+
+/* business add / edit */
+let BZ;
+function openBizEdit(id,from){const b=id?bizOf(id):null;BZ={id:b?b.id:null,from:from||'settings'};
+  openSheet(`<div class="top" style="height:40px">${BZ.from==='add'?`<button class="icon-btn" data-act="bzback" aria-label="Back">${ico('chevron-left')}</button>`:''}<h2>${b?'Edit business':'New business'}</h2><button class="icon-btn" data-act="close" aria-label="Close">${ico('x')}</button></div>
+  <div style="display:flex;flex-direction:column;gap:10px">
+  <div class="field">${ico('briefcase')}<input id="bzName" placeholder="Name, e.g. Kai Design Studio" maxlength="28" value="${esc(b?b.n:'')}"></div>
+  <div class="field">${ico('tag')}<input id="bzBn" inputmode="numeric" placeholder="CRA business number (optional)" maxlength="15" value="${esc(b&&b.bn||'')}"></div>
+  <div class="mute small" style="white-space:normal">Each business gets its own T2125 on your return. The business number (BN) is on your CRA letters. Leave it empty if you don't have one.</div>
+  <button class="btn" data-act="bzsave">${ico('check')}${b?'Save changes':'Add business'}</button></div>`,'bizedit')}
+function saveBiz(){const n=$('#bzName').value.trim(),bn=$('#bzBn').value.replace(/[^0-9A-Za-z]/g,'').toUpperCase();if(!n){toast('Give it a name','info');return}
+  if(BZ.id)Object.assign(bizOf(BZ.id),{n,bn});
+  else{const used=S.biz.list.map(b=>b.c),c=ACCT_COLORS.find(x=>!used.includes(x))||'#717B87',id='bz'+uid();S.biz.list.push({id,n,bn,c});BZ.id=id;if(BZ.from==='biz')V.bizSel=id}
+  save();
+  if(BZ.from==='add'){A.biz=true;A.bizId=BZ.id;A.bcat=A.bcat||'other';A.slip=A.slip||'t4a';drawAdd()}
+  else if(BZ.from==='biz'){closeSheet();render(false)}else{openSettings();render(false)}
+  toast(`${n} saved`,'briefcase')}
 
 /* ---------- receipts: stored on this phone (IndexedDB), copied to your private cloud folder when signed in ---------- */
 const RDB={p:null,open(){return this.p||(this.p=new Promise((res,rej)=>{const r=indexedDB.open('glacio-receipts',1);r.onupgradeneeded=()=>r.result.createObjectStore('r');r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error)}))},
@@ -1360,30 +1388,43 @@ async function makePdf(kind){
   const {jsPDF}=window.jspdf,doc=new jsPDF({unit:'pt',format:'letter'}),W=612,H=792,M=44;let y=M;
   const money=n=>(n<0?'-':'')+'$'+Math.abs(n).toLocaleString('en-CA',{minimumFractionDigits:2,maximumFractionDigits:2});
   const clean=t=>String(t).replace(/[^\x20-\x7EÀ-ÿ]/g,'?');
-  const yr=V.bizYr||TODAY.getFullYear(),isExp=kind==='exp',R=bizRecs(yr).filter(t=>t.type===(isExp?'out':'in')).sort((a,b)=>a.date.localeCompare(b.date));
+  const yr=V.bizYr||TODAY.getFullYear(),isExp=kind==='exp',sel=bizSel(yr),T=bizTargets(yr).filter(b=>sel==='all'||b.id===sel);
+  const recs=b=>bizRecs(yr,b.id).filter(t=>t.type===(isExp?'out':'in')).sort((a,c)=>a.date.localeCompare(c.date));
   const need=h=>{if(y+h>H-M){doc.addPage();y=M}};
-  doc.setFont('helvetica','bold');doc.setFontSize(18);doc.text(isExp?`Business expenses ${yr}`:`Business income ${yr}`,M,y);y+=18;
-  doc.setFont('helvetica','normal');doc.setFontSize(9.5);doc.setTextColor(110);doc.text(`Prepared ${TODAY_ISO} with Glacio. ${R.length} records.${isExp?' Receipts follow the list.':''}`,M,y);doc.setTextColor(0);y+=26;
-  const groups=isExp?Object.keys(BCAT).map(k=>{const r=R.filter(t=>(BCAT[t.bcat]?t.bcat:'other')===k);return {l:`${BCAT[k].l}  ${BCAT[k].n}${BCAT[k].half?' (50% deductible)':''}`,n:r.length,v:sum(r,t=>t.amt)}})
-    :Object.keys(BINC).map(k=>{const r=R.filter(t=>(BINC[t.slip]?t.slip:'noslip')===k);return {l:BINC[k].n.replace('·','-'),n:r.length,v:sum(r,t=>t.amt)}});
-  doc.setFont('helvetica','bold');doc.setFontSize(11);doc.text('Summary',M,y);y+=16;doc.setFontSize(10);doc.setFont('helvetica','normal');
-  groups.filter(g=>g.n).forEach(g=>{need(15);doc.text(clean(g.l),M,y);doc.text(String(g.n),W-M-90,y,{align:'right'});doc.text(money(g.v),W-M,y,{align:'right'});y+=15});
-  doc.setDrawColor(180);doc.line(M,y-9,W-M,y-9);doc.setFont('helvetica','bold');doc.text('Total',M,y+3);doc.text(money(sum(R,t=>t.amt)),W-M,y+3,{align:'right'});y+=18;
-  if(isExp){doc.setFont('helvetica','normal');doc.text('HST / GST paid (input tax credits)',M,y);doc.text(money(sum(R,t=>t.hst||0)),W-M,y,{align:'right'});y+=15;
-    doc.text('Meals & entertainment at 50%',M,y);doc.text(money(sum(R.filter(t=>t.bcat==='meals'),t=>t.amt/2)),W-M,y,{align:'right'});y+=15}
-  y+=14;const num={};let n=0;R.forEach(t=>(t.rc||[]).forEach(id=>num[id]=++n));
+  const num={};let n=0;T.forEach(b=>recs(b).forEach(t=>(t.rc||[]).forEach(id=>num[id]=++n)));
   const cols=isExp?[[M,'Date'],[M+62,'Paid to'],[M+212,'CRA line'],[W-M-150,'HST'],[W-M-80,'Amount'],[W-M,'Receipt']]:[[M,'Date'],[M+62,'From'],[M+240,'Type'],[W-M,'Amount']];
-  const head=()=>{doc.setFont('helvetica','bold');doc.setFontSize(9);cols.forEach(([x,h],i)=>doc.text(h,x,y,i>=(isExp?3:3)?{align:'right'}:undefined));y+=6;doc.line(M,y,W-M,y);y+=12;doc.setFont('helvetica','normal')};
-  need(40);doc.setFont('helvetica','bold');doc.setFontSize(11);doc.text('Records',M,y);y+=16;head();
-  R.forEach(t=>{if(y+14>H-M){doc.addPage();y=M;head()}doc.setFontSize(9);
-    const row=isExp?[t.date,clean(t.m).slice(0,28),(BCAT[t.bcat]||BCAT.other).l+' '+(BCAT[t.bcat]||BCAT.other).s,t.hst?money(t.hst):'',money(t.amt),(t.rc||[]).map(id=>'R'+num[id]).join(' ')||'missing']
-      :[t.date,clean(t.m).slice(0,34),(BINC[t.slip]||BINC.noslip).s,money(t.amt)];
-    row.forEach((v,i)=>doc.text(String(v),cols[i][0],y,i>=3?{align:'right'}:undefined));y+=14});
-  if(isExp){for(const t of R)for(const id of (t.rc||[])){const b=await rcBlob(id);doc.addPage();y=M;doc.setFont('helvetica','bold');doc.setFontSize(11);
-      doc.text(clean(`Receipt R${num[id]}  ${t.date}  ${t.m}  ${money(t.amt)}`),M,y);
-      if(!b){doc.setFont('helvetica','normal');doc.text('Image not available on this phone.',M,y+20);continue}
-      const u=await blobURL(b),d=await imgDim(u),sc=Math.min((W-2*M)/d.w,(H-2*M-20)/d.h);doc.addImage(u,'JPEG',M,y+12,d.w*sc,d.h*sc)}}
-  const out=await shareFile(doc.output('blob'),`glacio-${isExp?'expenses':'income'}-${yr}.pdf`,'application/pdf',isExp?'Business expenses':'Business income');
+  const head=()=>{doc.setFont('helvetica','bold');doc.setFontSize(9);cols.forEach(([x,h],i)=>doc.text(h,x,y,i>=3?{align:'right'}:undefined));y+=6;doc.line(M,y,W-M,y);y+=12;doc.setFont('helvetica','normal')};
+  const all=T.flatMap(recs);
+  // cover: every business at a glance
+  doc.setFont('helvetica','bold');doc.setFontSize(18);doc.text(isExp?`Business expenses ${yr}`:`Business income ${yr}`,M,y);y+=18;
+  doc.setFont('helvetica','normal');doc.setFontSize(9.5);doc.setTextColor(110);
+  doc.text(`Prepared ${TODAY_ISO} with Glacio. ${T.length} business${T.length>1?'es':''}, ${all.length} records.${isExp?' Receipts follow the lists.':''}`,M,y);doc.setTextColor(0);y+=24;
+  if(T.length>1){doc.setFont('helvetica','bold');doc.setFontSize(11);doc.text('Businesses (one T2125 each)',M,y);y+=16;doc.setFontSize(10);doc.setFont('helvetica','normal');
+    T.forEach(b=>{const r=recs(b);need(15);doc.text(clean(b.n+(b.bn?'  BN '+b.bn:'')),M,y);doc.text(String(r.length),W-M-90,y,{align:'right'});doc.text(money(sum(r,t=>t.amt)),W-M,y,{align:'right'});y+=15});
+    doc.setDrawColor(180);doc.line(M,y-9,W-M,y-9);doc.setFont('helvetica','bold');doc.text('All businesses',M,y+3);doc.text(money(sum(all,t=>t.amt)),W-M,y+3,{align:'right'});y+=24}
+  T.forEach((b,bi)=>{const R=recs(b);
+    if(T.length>1||bi>0){need(120)}
+    doc.setFont('helvetica','bold');doc.setFontSize(14);doc.text(clean(b.n),M,y);y+=15;
+    doc.setFont('helvetica','normal');doc.setFontSize(9.5);doc.setTextColor(110);doc.text(b.bn?`Business number ${b.bn}`:'No business number entered',M,y);doc.setTextColor(0);y+=18;
+    const groups=isExp?Object.keys(BCAT).map(k=>{const r=R.filter(t=>(BCAT[t.bcat]?t.bcat:'other')===k);return {l:`${BCAT[k].l}  ${BCAT[k].n}${BCAT[k].half?' (50% deductible)':''}`,n:r.length,v:sum(r,t=>t.amt)}})
+      :Object.keys(BINC).map(k=>{const r=R.filter(t=>(BINC[t.slip]?t.slip:'noslip')===k);return {l:BINC[k].n.replace('·','-'),n:r.length,v:sum(r,t=>t.amt)}});
+    doc.setFontSize(10);groups.filter(g=>g.n).forEach(g=>{need(15);doc.text(clean(g.l),M,y);doc.text(String(g.n),W-M-90,y,{align:'right'});doc.text(money(g.v),W-M,y,{align:'right'});y+=15});
+    if(!R.length){doc.text('No records this year.',M,y);y+=15}
+    doc.setDrawColor(180);doc.line(M,y-9,W-M,y-9);doc.setFont('helvetica','bold');doc.text('Total',M,y+3);doc.text(money(sum(R,t=>t.amt)),W-M,y+3,{align:'right'});y+=18;
+    if(isExp){doc.setFont('helvetica','normal');doc.text('HST / GST paid (input tax credits)',M,y);doc.text(money(sum(R,t=>t.hst||0)),W-M,y,{align:'right'});y+=15;
+      doc.text('Meals & entertainment at 50%',M,y);doc.text(money(sum(R.filter(t=>t.bcat==='meals'),t=>t.amt/2)),W-M,y,{align:'right'});y+=15}
+    if(R.length){y+=10;need(40);head();
+      R.forEach(t=>{if(y+14>H-M){doc.addPage();y=M;head()}doc.setFontSize(9);
+        const row=isExp?[t.date,clean(t.m).slice(0,28),(BCAT[t.bcat]||BCAT.other).l+' '+(BCAT[t.bcat]||BCAT.other).s,t.hst?money(t.hst):'',money(t.amt),(t.rc||[]).map(id=>'R'+num[id]).join(' ')||'missing']
+          :[t.date,clean(t.m).slice(0,34),(BINC[t.slip]||BINC.noslip).s,money(t.amt)];
+        row.forEach((v,i)=>doc.text(String(v),cols[i][0],y,i>=3?{align:'right'}:undefined));y+=14})}
+    y+=22});
+  if(isExp){for(const b of T)for(const t of recs(b))for(const id of (t.rc||[])){const bl=await rcBlob(id);doc.addPage();y=M;doc.setFont('helvetica','bold');doc.setFontSize(11);
+      doc.text(clean(`Receipt R${num[id]}  ${t.date}  ${t.m}  ${money(t.amt)}`),M,y);doc.setFont('helvetica','normal');doc.setFontSize(9.5);doc.setTextColor(110);doc.text(clean(b.n),M,y+13);doc.setTextColor(0);
+      if(!bl){doc.text('Image not available on this phone.',M,y+30);continue}
+      const u=await blobURL(bl),d=await imgDim(u),sc=Math.min((W-2*M)/d.w,(H-2*M-34)/d.h);doc.addImage(u,'JPEG',M,y+24,d.w*sc,d.h*sc)}}
+  const slug=(T.length===1?T[0].n:'all-businesses').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'')||'business';
+  const out=await shareFile(doc.output('blob'),`glacio-${slug}-${isExp?'expenses':'income'}-${yr}.pdf`,'application/pdf',isExp?'Business expenses':'Business income');
   if(out!=='cancelled')toast(out==='shared'?'PDF ready':'PDF saved','download')}
 
 /* settings + backup */
@@ -1402,7 +1443,9 @@ function openSettings(){
        :`<button class="btn" data-act="sbsend">${ico('arrow-right')}Email me a code</button>`}
       <div class="mute small" style="white-space:normal">Saves your data to Glacio's cloud so a new phone or the App Store version gets it back. Only you can read it.</div></div>`}
   <div class="sec"><span class="label">Self-employed</span><div class="list" style="background:var(--ink-3);margin-top:8px"><div class="mfield"><label>I get a T4A or run a business</label><button class="switch" role="switch" data-act="bizon" aria-checked="${!!S.biz.on}" aria-label="Self-employed records"></button></div></div>
-    <div class="mute small" style="margin-top:8px;white-space:normal">Adds a Business switch when you add records, CRA expense lines, receipt PDFs for your accountant (Tax → Business).</div></div>
+    ${S.biz.on?`<div class="list" style="background:var(--ink-3);margin-top:8px">${S.biz.list.map(b=>`<div class="row"><span class="ic cc" style="--cc:${b.c}">${ico('briefcase')}</span><button class="grow fit" style="text-align:left" data-act="bzedit" data-v="${b.id}">${esc(b.n)}</button>${b.bn?`<span class="mute small">BN ${esc(b.bn.slice(0,9))}</span>`:''}<button class="mini-act" data-act="bzedit" data-v="${b.id}" aria-label="Edit ${esc(b.n)}">${ico('pencil')}</button><button class="mini-act" data-act="bzdel" data-v="${b.id}" aria-label="Remove ${esc(b.n)}">${ico('trash')}</button></div>`).join('')}
+      <button class="row" data-act="biznew" data-v="settings"><span class="ic ice">${ico('plus')}</span><span class="grow">Add business</span>${ico('chevron-right')}</button></div>`:''}
+    <div class="mute small" style="margin-top:8px;white-space:normal">${S.biz.on?'Pick a business when you add a record. Tax → Business shows each one, with PDFs for your accountant.':'Adds businesses, CRA expense lines and receipt PDFs for your accountant (Tax → Business).'}</div></div>
   <div class="sec"><span class="label">Accounts</span>
   <div class="list" style="background:var(--ink-3);margin-top:8px">${S.accts.map(a=>{const x=acct(a.id);return `<div class="row"><span class="ic cc" style="--cc:${a.c}">${ico(x.i)}</span><button class="grow fit" style="text-align:left" data-act="acedit" data-v="${a.id}">${esc(a.n)}</button><span class="mute small">${x.k}</span><button class="mini-act" data-act="acedit" data-v="${a.id}" aria-label="Edit ${esc(a.n)}">${ico('pencil')}</button><button class="mini-act" data-act="acdel" data-v="${a.id}" aria-label="Remove ${esc(a.n)}">${ico('trash')}</button></div>`}).join('')}
     <button class="row" data-act="acctnew" data-v="settings"><span class="ic ice">${ico('plus')}</span><span class="grow">Add account</span>${ico('chevron-right')}</button></div></div>
@@ -1438,7 +1481,8 @@ function openItem(kind,id){
   let title,icon,rows,cc='';
   if(kind==='txn'){const t=S.txns.find(x=>String(x.id)===String(id));if(!t)return;const c=CATS[t.cat];title=t.m;icon=c.i;cc=c.c;
     rows=[['Amount',(t.type==='in'?'+':'')+fmt2(t.amt)],['Category',c.n],['Account',acct(t.acct).n],['Date',dayStr(t.date)]];
-    if(t.biz)rows.push(['Business',t.type==='out'?`${(BCAT[t.bcat]||BCAT.other).l} ${(BCAT[t.bcat]||BCAT.other).s}`:(BINC[t.slip]||BINC.noslip).s]);if(t.hst)rows.push(['HST paid',fmt2(t.hst)]);
+    if(t.biz)rows.push(['Business',(bizOf(t.bizId)||{n:'Not picked'}).n]);
+    if(t.biz)rows.push([t.type==='out'?'CRA line':'Slip',t.type==='out'?`${(BCAT[t.bcat]||BCAT.other).l} ${(BCAT[t.bcat]||BCAT.other).s}`:(BINC[t.slip]||BINC.noslip).s]);if(t.hst)rows.push(['HST paid',fmt2(t.hst)]);
     var rcs=t.rc||[],tid=t.id}
   else if(kind==='rem'){const r=S.rem.find(x=>x.id===id);if(!r)return;title=r.n;icon=remIcon(r.kind);
     rows=[['Amount',fmt2(r.amt)],['Due',`Day ${r.day} each month`],['Next',dayStr(iso(nextDay(r.day)))]]}
@@ -1618,9 +1662,15 @@ device.addEventListener('click',e=>{
     case 'tbtog': S.tb[b.dataset.k]=!S.tb[b.dataset.k];save();render(false);break;
     case 'tbkid': S.tb[b.dataset.k]=Math.max(0,Math.min(9,(S.tb[b.dataset.k]||0)+(+v)));save();render(false);break;
     case 'beninfo': openBenInfo(v);break;
-    case 'bizon': S.biz.on=!S.biz.on;if(!S.biz.on&&V.tview==='biz')V.tview='plan';save();openSettings();render(false);break;
-    case 'abiz': syncA();A.biz=v==='1';A.bcat=A.bcat||'other';A.slip=A.slip||'t4a';drawAdd();break;
+    case 'bizon': S.biz.on=!S.biz.on;if(S.biz.on&&!S.biz.list.length)S.biz.list.push({id:'bz'+uid(),n:'My business',bn:'',c:ACCT_COLORS[0]});if(!S.biz.on&&V.tview==='biz')V.tview='plan';save();openSettings();render(false);break;
+    case 'abiz': syncA();A.biz=v!=='0';A.bizId=A.biz?v:undefined;A.bcat=A.bcat||'other';A.slip=A.slip||'t4a';drawAdd();break;
     case 'bizyr': V.bizYr=+v;render(false);break;
+    case 'bizsel': V.bizSel=v;render(false);break;
+    case 'biznew': if(v==='add')syncA();openBizEdit(null,v);break;
+    case 'bzedit': openBizEdit(v,'settings');break;
+    case 'bzsave': saveBiz();break;
+    case 'bzback': drawAdd();break;
+    case 'bzdel':{const bz=bizOf(v),n=S.txns.filter(t=>t.bizId===v).length;if(bz&&confirm(`Remove ${bz.n}?${n?` Its ${n} records stay, under "No business picked".`:''}`)){S.biz.list=S.biz.list.filter(x=>x!==bz);if(V.bizSel===v)V.bizSel=null;save();openSettings();render(false)}break}
     case 'pdf': makePdf(v).catch(e=>toast('Could not make the PDF: '+e.message,'triangle-alert'));break;
     case 'rcrm': syncA();A.rc=(A.rc||[]).filter(r=>r.id!==v);if(!(A.rcOrig||[]).includes(v)&&RCURL[v]){URL.revokeObjectURL(RCURL[v]);delete RCURL[v]}drawAdd();break;
     case 'rcview': openRcView(v,b.dataset.x);break;
