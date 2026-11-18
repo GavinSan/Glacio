@@ -36,6 +36,7 @@ Then visit http://localhost:8765. It shows a phone frame on desktop.
 | Split | Create a group, add shared costs, see who owes whom, send a reminder through the iPhone share sheet, mark paid. |
 | Tax · Plan | Province picker (city lookup), 2026 combined tax buckets, income and costs, RRSP / TFSA / FHSA room with "how to find it" help, then a suggested split that never exceeds what is left after costs. |
 | Tax · Forecast | Salary slider, take-home, ordered "what to do" steps, 10-year projection by account, and a salary guide table. |
+| Tax · Refund | Estimates your 2026 refund or balance owing (federal + Ontario: credits, Ontario surtax, Health Premium, LIFT, self-employed CPP, Canada Workers Benefit) and the benefits you may get: Canada Child Benefit, Ontario Child Benefit, GST/HST credit, Ontario Trillium, OAS/GIS, Canada Disability Benefit. Each benefit is marked Checked or Estimate. |
 | Reminders | Bill due days and scheduled income / expenses. Scheduled items log themselves on their day. Tap any record to delete it. |
 
 Design rules: about 70% black, 25% white and 5% light blue for controls and motion. Every row stays on one line, with no ellipsis. Categories use a colour-blind-checked palette.
@@ -48,3 +49,14 @@ Design rules: about 70% black, 25% white and 5% light blue for controls and moti
 - **Legal:** All tax output is labelled as an educational estimate, not advice. Have a lawyer review the terms before App Store release.
 - **Notifications:** the web app cannot send bill alerts on iPhone without a push server, so reminders are only highlighted inside the app. Real alerts come with the App Store version.
 - **Cloud sync:** Settings → Cloud sync. Sign in with your email and a one-time code (a link would open Safari instead of the home-screen app). Data is one JSON row per user in Supabase (`supabase/schema.sql`), protected by row-level security. Changes upload about 1.5 s after you make them; when the app opens, the newer copy wins. Erasing a phone never touches the cloud copy.
+
+## Tax and benefit figures (2026)
+
+Amounts live in `TB_DEF`, `CR26` and `BEN` near the top of the script. "Checked" means several published 2026 sources agree; "Estimate" means we indexed it ourselves. Update these every July (benefit year) and January (tax year). Sources used:
+- Canada Child Benefit 2026–27: wealthnorth.ca, canadianmoneyhelp.ca
+- GST/HST credit (Groceries and Essentials Benefit) 2026–27: canadianmoneyhelp.ca, taxly.ca
+- Canada Workers Benefit 2026: canadianmoneyhelp.ca, rcicnews.com
+- OAS / GIS Oct–Dec 2026: savvynewcanadians.com, debtnorth.ca
+- Federal credits 2026 (age, pension, disability, medical): taxtips.ca, Carleton tax appendix 2026, canadianmoneyhelp.ca
+- Ontario Trillium and Ontario Child Benefit 2026–27: canada.ca (Province of Ontario page), lifemoney.ca
+- Canada Disability Benefit 2026–27: immigrationnewscanada.ca

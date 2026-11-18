@@ -524,6 +524,95 @@ function plan(t){
     mBefore:marginalAt(t.prov,emp,other,0),mAfter:marginalAt(t.prov,emp,other,fhsa+rrsp),top};
 }
 
+/* ---------- Refund & benefits engine ----------
+   Tax year 2026. Benefit rates = July 2026–June 2027 (paid from the 2025 return) used as the best guide for the next year.
+   ok:true = matches several published 2026 sources; otherwise our own indexing estimate. Educational estimate, not advice. */
+const TB_DEF={age:'u65',couple:false,spouseNI:0,k6:0,k17:0,housing:'rent',rent:2200,ptax:0,dtc:false,pension:0,cppInc:0,withheld:null,rrsp:null,care:0,dues:0,med:0,don:0,tuition:0,home:false};
+const CR26={age:{amt:9208,thr:46432},pension:2000,dtc:10341,medCap:2890,home:10000,
+  on:{age:{amt:6341,thr:47210},pension:1796,dtc:10445,medCap:2923,spouse:11028,lift:{max:875,s:32500,f:65000}}};
+const BEN={ccb:{u6:8157,u17:6883,t1:38237,t2:82847,r1:[0,.07,.135,.19,.23],r2:[0,.032,.057,.08,.095]},ocb:{per:1760,thr:26865,r:.08},
+  gst:{adult:445,child:234,supp:234,suppFrom:11564,thr:46432,r:.05},cwb:{s:1665,f:2869,from:3000,in:.27,ts:27392,tf:31251,out:.15},
+  ostc:{per:378,ts:29047,tf:36309,r:.04},oeptc:{max:1307,maxSr:1488,energy:291,ts:36256,tf:45320,r:.02},
+  oas:{m65:762.50,m75:838.75,claw:95323},gis:{m:1138.90,cut:23112},cdb:{max:2450.40,ts:23483,tf:32500,work:10000,r:.2}};
+const BENI={
+  ccb:{s:'Canada Child Benefit',n:'Canada Child Benefit',ok:true,how:'Tax-free, monthly. Apply when you register the birth or in CRA My Account. Both parents must file every year.'},
+  ocb:{s:'Ontario Child Benefit',n:'Ontario Child Benefit',ok:true,how:'Paid automatically with the Canada Child Benefit.'},
+  gst:{s:'GST/HST credit',n:'GST/HST credit (Groceries & Essentials Benefit)',ok:false,how:'Tax-free, every 3 months. Automatic when you file your return. About 25% higher for 5 years from July 2026.'},
+  cwb:{s:'Workers Benefit',n:'Canada Workers Benefit',ok:true,how:'Already counted in your refund above. Claim it on Schedule 6. You can get up to half in advance in July, October and January.'},
+  ostc:{s:'Ontario sales tax credit',n:'Ontario Trillium: sales tax credit',ok:true,how:'Fill in form ON-BEN with your return. Paid monthly (or once in June if it is $360 or less).'},
+  oeptc:{s:'Ontario energy & property',n:'Ontario Trillium: energy & property tax credit',ok:false,how:'Fill in ON-BEN and enter the rent or property tax you paid. CRA works out the exact amount.'},
+  oas:{s:'Old Age Security',n:'Old Age Security',ok:true,how:'Usually starts automatically at 65; otherwise apply with Service Canada. It is taxable, and high incomes pay part back.'},
+  gis:{s:'Income Supplement (GIS)',n:'Guaranteed Income Supplement',ok:false,how:'For low-income seniors on OAS. Apply with Service Canada. Tax-free. Rough single-person estimate.'},
+  cdb:{s:'Disability Benefit',n:'Canada Disability Benefit',ok:false,how:'Ages 18 to 64 with an approved disability tax credit. Apply with Service Canada.'}};
+function defaultRrsp(){const yr=String(TODAY.getFullYear());
+  return sum((S.inv||[]).filter(a=>a.kind==='rrsp'||a.kind==='fhsa'),a=>sum(a.moves.filter(m=>!m.open&&m.amt>0&&m.date.slice(0,4)===yr),m=>m.amt))}
+function taxEngine(){
+  const t=S.tax,b=S.tb,code=t.prov,P=PROV[code],ON=code==='ON',qc=code==='QC';
+  const emp=(t.salary||0)+(t.bonus||0)+(t.pt||0),other=t.other||0,yr=TODAY.getFullYear(),bz=S.biz.on?bizRecs(yr):[];
+  const se=Math.max(0,sum(bz.filter(x=>x.type==='in'),x=>x.amt)-sum(bz.filter(x=>x.type==='out'&&x.bcat!=='equip'),x=>x.amt*(BCAT[x.bcat]&&BCAT[x.bcat].half?.5:1)));
+  const old=b.age!=='u65',kids=b.k6+b.k17,fam=b.couple||kids>0,pension=old?(b.pension||0):0,cppInc=old?(b.cppInc||0):0;
+  const oasGross=old?(b.age==='75'?BEN.oas.m75:BEN.oas.m65)*12:0;
+  // CPP / EI
+  const ex=PAYROLL.exempt,pE=Math.max(0,Math.min(emp,PAYROLL.ympe)-ex),pS=Math.max(0,Math.max(0,Math.min(emp+se,PAYROLL.ympe)-ex)-pE);
+  const c2E=Math.max(0,Math.min(emp,PAYROLL.yampe)-PAYROLL.ympe)*PAYROLL.cpp2,c2S=Math.max(0,Math.max(0,Math.min(emp+se,PAYROLL.yampe)-PAYROLL.ympe)*PAYROLL.cpp2-c2E);
+  const base=qc?.053:PAYROLL.cppBase,enh=PAYROLL.cppEnh,ei=Math.min(emp,PAYROLL.eiMax)*(qc?.013:PAYROLL.ei);
+  const cppSE=(pS*(base+enh)+c2S)*2;
+  // deductions
+  const rrspDefault=defaultRrsp(),rrsp=b.rrsp!=null?b.rrsp:rrspDefault;
+  const care=Math.min(b.care||0,b.k6*8000+b.k17*5000,(emp+se)*2/3);
+  const ded=rrsp+care+(b.dues||0)+pE*enh+c2E+pS*(base+enh)+pS*enh+c2S*2;
+  const gross=emp+se+other+pension+cppInc+oasGross;
+  let ni=Math.max(0,gross-ded);
+  const oasBack=Math.min(oasGross,.15*Math.max(0,ni-BEN.oas.claw));ni=Math.max(0,ni-oasBack);
+  // credits
+  const claw=Math.min(1,Math.max(0,(ni-FED.b[2])/(FED.b[3]-FED.b[2]))),bpa=FED.bpaMax-(FED.bpaMax-FED.bpaMin)*claw,r0=FED.r[0],p0=P.r[0];
+  const items=[],add=(n,f,p)=>{if(f>.5||p>.5)items.push({n,f:Math.max(0,f),p:Math.max(0,p||0)})};
+  const paid=pE*base+pS*base+ei;
+  add('Basic personal amount',bpa*r0,P.bpa*p0);
+  add('CPP & EI you paid',paid*r0,paid*p0);
+  add('Canada employment amount',Math.min(FED.cea,emp)*r0,0);
+  if(b.couple&&(b.spouseNI||0)<bpa)add('Spouse amount',(bpa-(b.spouseNI||0))*r0,ON?Math.max(0,CR26.on.spouse-(b.spouseNI||0))*p0:0);
+  else if(!b.couple&&kids>0)add('Eligible dependant (single parent)',bpa*r0,ON?CR26.on.spouse*p0:0);
+  if(old){add('Age amount',(CR26.age.amt-.15*Math.max(0,ni-CR26.age.thr))*r0,ON?(CR26.on.age.amt-.15*Math.max(0,ni-CR26.on.age.thr))*p0:0);
+    add('Pension income amount',Math.min(CR26.pension,pension)*r0,ON?Math.min(CR26.on.pension,pension)*p0:0)}
+  if(b.dtc)add('Disability amount',CR26.dtc*r0,ON?CR26.on.dtc*p0:0);
+  if(b.med>0)add('Medical expenses',(b.med-Math.min(.03*ni,CR26.medCap))*r0,ON?(b.med-Math.min(.03*ni,CR26.on.medCap))*p0:0);
+  if(b.don>0)add('Donations',Math.min(200,b.don)*r0+Math.max(0,b.don-200)*.29,ON?Math.min(200,b.don)*.0505+Math.max(0,b.don-200)*.1116:0);
+  if(b.tuition>0)add('Tuition',b.tuition*r0,0);
+  if(b.home)add("Home buyers' amount",CR26.home*r0,0);
+  const fedBefore=bracketTax(ni,FED.b,FED.r),provBefore=bracketTax(ni,P.b,P.r);
+  let fed=Math.max(0,fedBefore-sum(items,i=>i.f));if(qc)fed*=1-.165;
+  let prov=Math.max(0,provBefore-sum(items,i=>i.p)),surtax=0,ohpAmt=0,lift=0;
+  const afni=ni+(b.couple?(b.spouseNI||0):0);
+  if(ON){surtax=.2*Math.max(0,prov-5818)+.36*Math.max(0,prov-7446);prov+=surtax;
+    lift=Math.max(0,Math.min(CR26.on.lift.max,.0505*emp)-.10*Math.max(0,b.couple?afni-CR26.on.lift.f:ni-CR26.on.lift.s));lift=Math.min(lift,prov);prov-=lift;
+    ohpAmt=ohp(ni);prov+=ohpAmt}
+  // Canada Workers Benefit (refundable, paid through the return)
+  const work=emp+se,cw=BEN.cwb,cwb=Math.max(0,Math.min(fam?cw.f:cw.s,cw.in*Math.max(0,work-cw.from))-cw.out*Math.max(0,afni-(fam?cw.tf:cw.ts)));
+  const withheldEst=emp>0?calc(code,emp,0,0).tax:0,withheld=b.withheld!=null?b.withheld:withheldEst;
+  const refund=withheld+cwb-fed-prov-cppSE;
+  // benefits
+  const ben={};const B=BEN;
+  if(kids){const n=Math.min(kids,4),max=b.k6*B.ccb.u6+b.k17*B.ccb.u17,
+      red=afni<=B.ccb.t1?0:afni<=B.ccb.t2?B.ccb.r1[n]*(afni-B.ccb.t1):B.ccb.r1[n]*(B.ccb.t2-B.ccb.t1)+B.ccb.r2[n]*(afni-B.ccb.t2);
+    ben.ccb=Math.max(0,max-red);if(ON)ben.ocb=Math.max(0,kids*B.ocb.per-B.ocb.r*Math.max(0,afni-B.ocb.thr))}
+  {const g=B.gst;let amt;
+    if(b.couple)amt=2*g.adult+kids*g.child;
+    else if(kids>0)amt=2*g.adult+(kids-1)*g.child+g.supp;
+    else amt=g.adult+Math.min(g.supp,.02*Math.max(0,ni-g.suppFrom));
+    ben.gst=Math.max(0,amt-g.r*Math.max(0,afni-g.thr))}
+  if(cwb>0)ben.cwb=cwb;
+  if(ON){const o=B.ostc;ben.ostc=Math.max(0,o.per*(1+(b.couple?1:0)+kids)-o.r*Math.max(0,afni-(fam?o.tf:o.ts)));
+    const e=B.oeptc,occ=b.housing==='rent'?(b.rent||0)*12*.2:b.housing==='own'?(b.ptax||0):0;
+    if(occ>0){const cr=occ<=e.energy?occ:Math.min(old?e.maxSr:e.max,e.energy+.1*occ);ben.oeptc=Math.max(0,cr-e.r*Math.max(0,afni-(fam?e.tf:e.ts)))}}
+  if(old){ben.oas=oasGross-oasBack;
+    if(!b.couple){const excl=Math.min(emp,5000)+.5*Math.min(Math.max(0,emp-5000),10000),inc=Math.max(0,gross-oasGross-excl);ben.gis=Math.max(0,B.gis.m*12*(1-inc/B.gis.cut))}}
+  if(b.dtc&&!old){const c=B.cdb,inc=Math.max(0,afni-Math.min(work,c.work));ben.cdb=Math.max(0,c.max-c.r*Math.max(0,inc-(b.couple?c.tf:c.ts)))}
+  Object.keys(ben).forEach(k=>{if(ben[k]<1)delete ben[k]});
+  const benTotal=sum(Object.entries(ben).filter(([k])=>k!=='cwb'),([,v])=>v);
+  return {emp,se,other,pension,cppInc,oasGross,oasBack,gross,ded,rrsp,rrspDefault,ni,afni,items,fedBefore,provBefore,fed,prov,surtax,ohpAmt,lift,cppSE,cwb,withheld,withheldEst,refund,ben,benTotal,kids,ON};
+}
+
 /* ---------- cloud sync (Supabase) ----------
    One JSON row per user (table glacio_state, row-level security). Sign-in = email + one-time code,
    because an email link would open Safari instead of the home-screen app.
@@ -592,7 +681,7 @@ function syncText(){if(!AUTH)return '';if(AUTH.lastErr)return 'Not synced · '+A
    Save 10% of gross. RRSP room = 18% of $80k. TFSA 2026 = $7,000. FHSA = $8,000/yr. */
 const TORONTO = {salary:80000, monthly:3500, target:8000, rrspRoom:14400};
 const DEFAULT = ()=>({
-  txns:[], sched:[], rem:[], groups:[], inv:[], accts:[], people:{you:'You'}, biz:{on:false},
+  txns:[], sched:[], rem:[], groups:[], inv:[], accts:[], people:{you:'You'}, biz:{on:false}, tb:{...TB_DEF},
   tax:{step:0,prov:'ON',city:'Toronto',salary:TORONTO.salary,bonus:0,pt:0,other:0,freq:26,monthly:TORONTO.monthly,target:TORONTO.target,
        rrspRoom:TORONTO.rrspRoom,tfsaRoom:7000,home:true,fhsaRoom:8000,mode:'bal'},
   fc:{salary:TORONTO.salary,save:.2,ret:.05}
@@ -603,7 +692,7 @@ if(!S||!S.txns)S=DEFAULT();
 function bindState(){const d=DEFAULT();['txns','sched','rem','groups','inv'].forEach(k=>{if(!Array.isArray(S[k]))S[k]=[]});
   if(!Array.isArray(S.accts)){const used=[...new Set([...S.txns,...S.sched].map(t=>t.acct))].filter(k=>LEGACY_ACCTS[k]);
     S.accts=used.map((k,i)=>({id:k,n:LEGACY_ACCTS[k].n,kind:LEGACY_ACCTS[k].kind,c:ACCT_COLORS[i]}))}
-  S.biz=S.biz||{on:false};S.people=S.people||{you:'You'};S.tax={...d.tax,...(S.tax||{})};S.fc={...d.fc,...(S.fc||{})};PEOPLE=S.people}
+  S.biz=S.biz||{on:false};S.tb={...TB_DEF,...(S.tb||{})};S.people=S.people||{you:'You'};S.tax={...d.tax,...(S.tax||{})};S.fc={...d.fc,...(S.fc||{})};PEOPLE=S.people}
 bindState();
 const V={tview:'plan',fcYr:null,tab:'home',lvl:0,type:'out',acct:null,sel:null,grp:null,nudged:{},newId:null};
 function save(){try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}markDirty()}
@@ -821,6 +910,7 @@ function vSplit(){
 function vTax(){
   if(V.tview==='fc')return vForecast();
   if(V.tview==='biz'&&S.biz.on)return vBiz();
+  if(V.tview==='ref')return vRefund();
   const t=S.tax, P=PROV[t.prov], st=t.step;
   const dots=[0,1,2,3].map(i=>`<span class="${i===st?'on':i<st?'done':''}"></span>`).join('');
   const head=`<div class="top">${st>0?`<button class="icon-btn" data-act="tstep" data-v="${st-1}" aria-label="Back">${ico('chevron-left')}</button>`:''}<h1>Tax</h1><div class="steps">${dots}</div>${eyeBtn()}</div>${taxSeg()}`;
@@ -901,7 +991,8 @@ function mf(id,icon,label,val,help){
 }
 
 /* ---------- forecast ---------- */
-function taxSeg(){return `<div class="seg" style="margin-bottom:14px"><button data-act="tview" data-v="plan" aria-pressed="${V.tview!=='fc'&&V.tview!=='biz'}">${ico('landmark')}Plan</button><button data-act="tview" data-v="fc" aria-pressed="${V.tview==='fc'}">${ico('trending-up')}Forecast</button>${S.biz.on?`<button data-act="tview" data-v="biz" aria-pressed="${V.tview==='biz'}">${ico('briefcase')}Business</button>`:''}</div>`}
+function taxSeg(){const tabs=[['plan','landmark','Plan'],['fc','trending-up','Forecast'],['ref','rotate-ccw','Refund']].concat(S.biz.on?[['biz','briefcase','Business']]:[]),cur=['fc','ref','biz'].includes(V.tview)&&(V.tview!=='biz'||S.biz.on)?V.tview:'plan';
+  return `<div class="seg" style="margin-bottom:14px">${tabs.map(([v,i,l])=>`<button data-act="tview" data-v="${v}" aria-pressed="${cur===v}">${tabs.length<4?ico(i):''}${l}</button>`).join('')}</div>`}
 const SAL_MIN=30000,SAL_MAX=300000;
 function vForecast(){
   const f=S.fc,p=(f.salary-SAL_MIN)/(SAL_MAX-SAL_MIN)*100;
@@ -1097,6 +1188,57 @@ function saveAdd(){
   toast(past?`${name} ${fmt2(amt)} saved`:`${name} scheduled`, past?'check':'calendar');
   if(V.tab==='home'){V.lvl=0;V.sel=null}render(false);
 }
+
+/* ---------- Tax > Refund view ---------- */
+function tbField(k,icon,label,val,ph){return `<div class="mfield"><span class="ic">${ico(icon)}</span><label for="tb-${k}">${label}</label><span class="in"><span>$</span><input id="tb-${k}" data-tb="${k}" inputmode="numeric" placeholder="${ph!=null?Math.round(ph).toLocaleString('en-CA'):'0'}" value="${val!=null&&val!==0?Math.round(val).toLocaleString('en-CA'):''}"></span></div>`}
+function tbHero(E){const r=E.refund;
+  return `<div class="mute small">${r>=0?'Est. refund':'Est. you owe'} · ${TODAY.getFullYear()} return</div><div class="hero-num fit">${r>=0&&!masked()?'+':''}${fmt(Math.abs(r))}</div>
+  <div class="legend" style="margin-top:8px"><div class="leg"><span class="lt">${ico('gift')}Benefits / yr</span><span class="lv fit">${fmt(E.benTotal)}</span></div><div class="leg"><span class="lt">${ico('calendar')}Per month</span><span class="lv fit">${fmt(E.benTotal/12)}</span></div></div>`}
+function tbBreak(E){const kv=(k,v,strong)=>`<div class="kv"><span class="mute">${k}</span><span class="v"${strong?' style="color:var(--ice)"':''}>${v}</span></div>`;
+  return kv('Total income',fmt(E.gross))+kv('Deductions (RRSP, CPP, care…)','−'+fmt(E.ded))+(E.oasBack?kv('OAS paid back','−'+fmt(E.oasBack)):'')+kv('Taxable income',fmt(E.ni))
+   +kv('Federal tax before credits',fmt(E.fedBefore))+kv(`${PROV[S.tax.prov].s} tax before credits`,fmt(E.provBefore))
+   +E.items.map(i=>kv(i.n,'−'+fmt(i.f+i.p))).join('')
+   +(E.surtax?kv('Ontario surtax',fmt(E.surtax)):'')+(E.lift?kv('Ontario LIFT credit','−'+fmt(E.lift)):'')+(E.ohpAmt?kv('Ontario Health Premium',fmt(E.ohpAmt)):'')
+   +kv('Income tax you owe',fmt(E.fed+E.prov))+(E.cppSE?kv('CPP on self-employment',fmt(E.cppSE)):'')
+   +(E.cwb?kv('Canada Workers Benefit','−'+fmt(E.cwb)):'')+kv('Tax already taken off',fmt(E.withheld))
+   +kv(E.refund>=0?'Refund':'You owe',fmt(Math.abs(E.refund)),true)}
+function tbBen(E){const rows=Object.entries(E.ben);
+  return rows.length?rows.map(([k,v])=>`<button class="row" data-act="beninfo" data-v="${k}"><span class="grow fit">${BENI[k].s}</span><span class="chip${BENI[k].ok?' ice':''}" style="height:22px;padding:0 8px;font-size:11px">${BENI[k].ok?'Checked':'Estimate'}</span><span class="mute small num">${fmt(v/12)}/mo</span><span class="amt">${fmt(v)}</span></button>`).join('')
+    :empty('No benefits at this income. Still file every year.','gift')}
+function vRefund(){const b=S.tb,E=taxEngine(),seg=(k,opts)=>`<div class="seg">${opts.map(([v,l])=>`<button data-act="tbset" data-k="${k}" data-v="${v}" aria-pressed="${String(b[k])===v}">${l}</button>`).join('')}</div>`;
+  const kid=(k,l)=>`<div class="mfield"><span class="ic">${ico('users')}</span><label>${l}</label><button class="mini-act" data-act="tbkid" data-k="${k}" data-v="-1" aria-label="One less">−</button><b class="num" style="width:22px;text-align:center">${b[k]}</b><button class="mini-act" data-act="tbkid" data-k="${k}" data-v="1" aria-label="One more">${ico('plus')}</button></div>`;
+  const sw=(k,icon,l)=>`<div class="mfield"><span class="ic">${ico(icon)}</span><label>${l}</label><button class="switch" role="switch" data-act="tbtog" data-k="${k}" aria-checked="${!!b[k]}" aria-label="${l}"></button></div>`;
+  return `<div class="top"><h1>Tax</h1><button class="chip ice" data-act="provpick" aria-label="Change province">${ico('map-pin')}${PROV[S.tax.prov].s}</button>${eyeBtn()}</div>${taxSeg()}
+  <div id="tbHero">${tbHero(E)}</div>
+  <div class="sec"><span class="label">You</span><div style="display:flex;flex-direction:column;gap:8px;margin-top:8px">
+    ${seg('age',[['u65','Under 65'],['65','65–74'],['75','75+']])}${seg('couple',[['false','Single'],['true','Couple']])}${seg('housing',[['rent','Rent'],['own','Own'],['none','Neither']])}</div>
+    <div class="list" style="margin-top:8px">${kid('k6','Kids under 6')}${kid('k17','Kids 6 to 17')}
+      ${b.couple?tbField('spouseNI','users','Spouse net income',b.spouseNI):''}
+      ${b.housing==='rent'?tbField('rent','house','Rent / month',b.rent):b.housing==='own'?tbField('ptax','house','Property tax / year',b.ptax):''}
+      ${sw('dtc','heart-pulse','Disability tax credit approved')}</div></div>
+  <div class="sec"><span class="label">Income ${TODAY.getFullYear()}</span><div class="list">
+    <div class="kv"><span class="mute">Employment (from Plan)</span><span class="v">${fmt(E.emp)}</span></div>
+    ${E.other?`<div class="kv"><span class="mute">Other income (from Plan)</span><span class="v">${fmt(E.other)}</span></div>`:''}
+    ${S.biz.on?`<div class="kv"><span class="mute">Self-employed net (from Business)</span><span class="v">${fmt(E.se)}</span></div>`:''}
+    ${b.age!=='u65'?tbField('pension','briefcase','Workplace pension / RRIF',b.pension)+tbField('cppInc','landmark','CPP you receive',b.cppInc):''}
+    ${tbField('withheld','receipt','Tax already taken off',b.withheld,E.withheldEst)}</div>
+    <div class="mute small" style="margin-top:8px;white-space:normal">Leave it empty to use our estimate from your pay. Your slips have the real number: T4 box 22, T4A box 022, pension and RRIF slips.</div></div>
+  <div class="sec"><span class="label">Deductions &amp; credits</span><div class="list">
+    ${tbField('rrsp','piggy-bank','RRSP + FHSA put in',b.rrsp,E.rrspDefault)}
+    ${E.kids?tbField('care','users','Child care paid',b.care):''}
+    ${tbField('dues','badge-check','Union / professional dues',b.dues)}${tbField('med','heart-pulse','Medical &amp; dental paid',b.med)}
+    ${tbField('don','gift','Donations',b.don)}${tbField('tuition','calculator','Tuition (T2202)',b.tuition)}
+    ${sw('home','key-round','Bought first home this year')}</div></div>
+  <div class="sec"><span class="label">How it adds up</span><div class="list" id="tbBreak">${tbBreak(E)}</div></div>
+  <div class="sec"><span class="label">Benefits you may get · per year</span><div class="list" id="tbBen">${tbBen(E)}</div>
+    <div class="mute small" style="margin-top:8px;white-space:normal">Paid from July after you file, at 2026–27 rates. Tap one to see how to get it.</div></div>
+  <div class="sec"><div class="legal">${ico('info')}<span>Educational estimate, not tax advice. Federal and Ontario rules for 2026${E.ON?'':`; ${PROV[S.tax.prov].n} benefits are not added yet`}. "Estimate" means we indexed the amount ourselves; check CRA My Account. The Canada Carbon Rebate ended in 2025.</span></div></div>`}
+function tbRefresh(){const E=taxEngine(),h=$('#tbHero'),br=$('#tbBreak'),bn=$('#tbBen');if(!h)return;h.innerHTML=tbHero(E);br.innerHTML=tbBreak(E);bn.innerHTML=tbBen(E);hydrateIcons(h);fitAll($('#screen'))}
+function openBenInfo(k){const E=taxEngine(),i=BENI[k];
+  openSheet(`<div class="top" style="height:40px"><span class="ic ice">${ico('gift')}</span><h2 class="fit">${i.n}</h2><button class="icon-btn" data-act="close" aria-label="Close">${ico('x')}</button></div>
+  <div class="list" style="background:var(--ink-3)"><div class="kv"><span class="mute">Per year</span><span class="v">${fmt(E.ben[k]||0)}</span></div><div class="kv"><span class="mute">Per month</span><span class="v">${fmt((E.ben[k]||0)/12)}</span></div>
+  <div class="kv"><span class="mute">Figures</span><span class="v">${i.ok?'Checked against 2026 sources':'Our estimate'}</span></div></div>
+  <p style="margin-top:12px">${i.how}</p>`,'ben')}
 
 /* ---------- self-employed: CRA T2125 lines ---------- */
 const BCAT={adv:{n:'Advertising',s:'Ads',l:'8521'},meals:{n:'Meals & entertainment',s:'Meals',l:'8523',half:true},ins:{n:'Insurance',s:'Insurance',l:'8690'},
@@ -1472,6 +1614,10 @@ device.addEventListener('click',e=>{
     case 'acct': V.acct=v;V.lvl=2;render();break;
     case 'back': if(V.tab==='split'){V.grp=null}else{V.lvl=Math.max(0,V.lvl-1);V.sel=null}render();break;
     case 'settings': openSettings();break;
+    case 'tbset': S.tb[b.dataset.k]=v==='true'?true:v==='false'?false:v;save();render(false);break;
+    case 'tbtog': S.tb[b.dataset.k]=!S.tb[b.dataset.k];save();render(false);break;
+    case 'tbkid': S.tb[b.dataset.k]=Math.max(0,Math.min(9,(S.tb[b.dataset.k]||0)+(+v)));save();render(false);break;
+    case 'beninfo': openBenInfo(v);break;
     case 'bizon': S.biz.on=!S.biz.on;if(!S.biz.on&&V.tview==='biz')V.tview='plan';save();openSettings();render(false);break;
     case 'abiz': syncA();A.biz=!A.biz;A.bcat=A.bcat||'other';A.slip=A.slip||'t4a';drawAdd();break;
     case 'bizyr': V.bizYr=+v;render(false);break;
@@ -1565,6 +1711,8 @@ device.addEventListener('change',e=>{if(e.target.id==='importFile'&&e.target.fil
   if(e.target.id==='aDate'&&e.target.value){A.m=$('#aName')?.value||A.m;A.when='custom';A.date=e.target.value;drawAdd()}});
 device.addEventListener('input',e=>{
   const i=e.target;
+  if(i.dataset.tb){const raw=i.value.replace(/[^0-9]/g,'').slice(0,8),k=i.dataset.tb;i.value=raw?parseInt(raw).toLocaleString('en-CA'):'';
+    S.tb[k]=raw?parseInt(raw):(k==='withheld'||k==='rrsp'?null:0);save();tbRefresh();return}
   if(i.id==='aName'){A.m=i.value;const sg=$('#aSug');if(sg){sg.innerHTML=sugHTML(i.value);hydrateIcons(sg)}
     const p=payees(A.type).find(x=>x.m.toLowerCase()===i.value.trim().toLowerCase());
     if(p&&!A.edit&&CATS[p.cat]&&p.cat!==A.cat){A.cat=p.cat;document.querySelectorAll('#sheet .cat').forEach(c=>c.setAttribute('aria-pressed',c.dataset.v===p.cat));$('[data-act="asave"]').innerHTML=ico('check')+'Save '+CATS[p.cat].n}return}
