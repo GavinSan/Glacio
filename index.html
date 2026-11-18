@@ -1387,7 +1387,7 @@ async function makePdf(kind){
   toast('Making PDF…','download');await loadScript('vendor/jspdf/jspdf.umd.min.js');
   const {jsPDF}=window.jspdf,doc=new jsPDF({unit:'pt',format:'letter'}),W=612,H=792,M=44;let y=M;
   const money=n=>(n<0?'-':'')+'$'+Math.abs(n).toLocaleString('en-CA',{minimumFractionDigits:2,maximumFractionDigits:2});
-  const clean=t=>String(t).replace(/[^\x20-\x7EÀ-ÿ]/g,'?');
+  const clean=t=>String(t).replace(/\u2026/g,'...').replace(/[\u2018\u2019]/g,"'").replace(/[\u201C\u201D]/g,'"').replace(/[\u2013\u2014\u00B7]/g,'-').replace(/[^\x20-\x7E\u00C0-\u00FF]/g,'?');
   const yr=V.bizYr||TODAY.getFullYear(),isExp=kind==='exp',sel=bizSel(yr),T=bizTargets(yr).filter(b=>sel==='all'||b.id===sel);
   const recs=b=>bizRecs(yr,b.id).filter(t=>t.type===(isExp?'out':'in')).sort((a,c)=>a.date.localeCompare(c.date));
   const need=h=>{if(y+h>H-M){doc.addPage();y=M}};
