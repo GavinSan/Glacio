@@ -321,7 +321,7 @@ html,body{position:fixed;inset:0;overflow:hidden;overscroll-behavior:none}
 .rcth .x svg{width:12px;height:12px}
 .rcfull{width:100%;border-radius:14px;display:block;background:var(--ink-3)}
 .hstin{display:flex;align-items:center;gap:6px;height:30px;padding:0 11px;border-radius:15px;background:var(--ink-3);flex:1;min-width:0}
-.hstin input{flex:1;min-width:0;background:none;border:0;outline:0;font-weight:700}
+.hstin input{flex:1;min-width:0;background:none;border:0;outline:0;font-weight:700}.hstin input::placeholder{font-size:12.5px;font-weight:700;color:var(--dim)}
 @media (prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important}}
 </style>
 
@@ -1140,9 +1140,9 @@ function drawAdd(){
     <div class="catgrid" style="grid-template-columns:repeat(${cats.length},1fr)">${cats.map(c=>`<button class="cat" style="--cc:${CATS[c].c}" data-act="acat" data-v="${c}" aria-pressed="${A.cat===c}" aria-label="${CATS[c].n}" title="${CATS[c].n}">${ico(CATS[c].i)}</button>`).join('')}</div>
     <div class="opt"><span class="lbl">${ico('wallet')}From</span><div class="chips">${S.accts.map(a=>`<button class="chip${A.acct===a.id?' on':''}" data-act="aset" data-k="acct" data-v="${a.id}">${esc(a.n)}</button>`).join('')}<button class="chip${S.accts.length?'':' ice'}" data-act="acctnew" data-v="add" aria-label="Add account">${ico('plus')}${S.accts.length?'':'Add account'}</button></div></div>
     <div class="opt"><span class="lbl">${ico('calendar')}When</span><div class="chips">${WHEN().map(w=>`<button class="chip${A.when===w.k?' on':''}" data-act="aset" data-k="when" data-v="${w.k}">${w.l}</button>`).join('')}<label class="chip datechip${A.when==='custom'?' on':''}">${ico('calendar')}${A.when==='custom'&&A.date?dayStr(A.date):'Pick date'}<input type="date" id="aDate" value="${A.date||TODAY_ISO}" aria-label="Pick a date"></label></div></div>
-    ${S.biz.on?`<div class="opt"><span class="lbl">${ico('briefcase')}Business</span><div class="chips"><button class="switch" role="switch" data-act="abiz" aria-checked="${!!A.biz}" aria-label="Business record"></button></div></div>
-    ${A.biz?(A.type==='out'?`<div class="opt"><span class="lbl">${ico('tag')}CRA line</span><div class="chips">${Object.entries(BCAT).map(([k,x])=>`<button class="chip${A.bcat===k?' on':''}" data-act="aset" data-k="bcat" data-v="${k}">${x.s}</button>`).join('')}</div></div>
-    <div class="opt"><span class="lbl">${ico('receipt')}HST</span><div class="hstin"><span class="mute">$</span><input id="aHst" inputmode="decimal" placeholder="Sales tax paid (optional)" value="${esc(A.hst||'')}"></div></div>`
+    ${S.biz.on?`<div class="opt"><span class="lbl">${ico('briefcase')}For</span><div class="chips"><button class="chip${A.biz?'':' on'}" data-act="abiz" data-v="0">Personal</button><button class="chip${A.biz?' on':''}" data-act="abiz" data-v="1">Business</button></div></div>
+    ${A.biz?(A.type==='out'?`<div class="opt"><span class="lbl">${ico('tag')}CRA</span><div class="chips">${Object.entries(BCAT).map(([k,x])=>`<button class="chip${A.bcat===k?' on':''}" data-act="aset" data-k="bcat" data-v="${k}">${x.s}</button>`).join('')}</div></div>
+    <div class="opt"><span class="lbl">${ico('receipt')}HST</span><div class="hstin"><span class="mute">$</span><input id="aHst" inputmode="decimal" placeholder="Tax paid · optional" value="${esc(A.hst||'')}"></div></div>`
      :`<div class="opt"><span class="lbl">${ico('tag')}Slip</span><div class="chips">${Object.entries(BINC).map(([k,x])=>`<button class="chip${A.slip===k?' on':''}" data-act="aset" data-k="slip" data-v="${k}">${x.s}</button>`).join('')}</div></div>`):''}`:''}
     ${A.edit&&A.edit.kind==='txn'?'':`<div class="opt"><span class="lbl">${ico('repeat')}Repeat</span><div class="chips">${chipset('repeat',['Once','Weekly','2 Wks','2×/Mo','Monthly'])}</div></div>`}
     <div class="keypad">${['1','2','3','4','5','6','7','8','9','.','0','del'].map(k=>`<button class="key" data-act="key" data-v="${k}" aria-label="${k==='del'?'Delete':k}">${k==='del'?ico('delete'):k}</button>`).join('')}</div>
@@ -1619,7 +1619,7 @@ device.addEventListener('click',e=>{
     case 'tbkid': S.tb[b.dataset.k]=Math.max(0,Math.min(9,(S.tb[b.dataset.k]||0)+(+v)));save();render(false);break;
     case 'beninfo': openBenInfo(v);break;
     case 'bizon': S.biz.on=!S.biz.on;if(!S.biz.on&&V.tview==='biz')V.tview='plan';save();openSettings();render(false);break;
-    case 'abiz': syncA();A.biz=!A.biz;A.bcat=A.bcat||'other';A.slip=A.slip||'t4a';drawAdd();break;
+    case 'abiz': syncA();A.biz=v==='1';A.bcat=A.bcat||'other';A.slip=A.slip||'t4a';drawAdd();break;
     case 'bizyr': V.bizYr=+v;render(false);break;
     case 'pdf': makePdf(v).catch(e=>toast('Could not make the PDF: '+e.message,'triangle-alert'));break;
     case 'rcrm': syncA();A.rc=(A.rc||[]).filter(r=>r.id!==v);if(!(A.rcOrig||[]).includes(v)&&RCURL[v]){URL.revokeObjectURL(RCURL[v]);delete RCURL[v]}drawAdd();break;
