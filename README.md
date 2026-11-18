@@ -30,6 +30,8 @@ Then visit http://localhost:8765. It shows a phone frame on desktop.
 | Investments | On Overview. Add TFSA / RRSP / FHSA / other accounts, log money put in or taken out, update what each is worth. Shows gain and this year's room left. |
 | Add (+) | Income or expense, keypad, category, account (add one right there if you have none), date (yesterday, today, tomorrow, next 1st), repeat schedule. |
 | Privacy | Eye button on every screen hides all amounts, including the spend & save chart. |
+| Self-employed | Settings switch. Mark records as Business, pick the CRA T2125 line (or T4A slip for income), note HST paid. Tax → Business shows the year by T2125 line and makes two PDFs for your accountant: expenses with every receipt, and income. |
+| Receipts | Attach a photo to any record. "Scan receipt" reads the total, date, store and HST on the phone itself (Tesseract, open source, served from `vendor/`; nothing is sent anywhere). Photos stay on the phone and copy to your private Supabase folder when signed in. |
 | Settings | Your payment accounts (credit, debit, cash), export / restore a backup file, erase all data. Apple Wallet auto-logging waits for the App Store version. |
 | Split | Create a group, add shared costs, see who owes whom, send a reminder through the iPhone share sheet, mark paid. |
 | Tax · Plan | Province picker (city lookup), 2026 combined tax buckets, income and costs, RRSP / TFSA / FHSA room with "how to find it" help, then a suggested split that never exceeds what is left after costs. |

@@ -313,6 +313,15 @@ html{touch-action:manipulation}
 html,body{position:fixed;inset:0;overflow:hidden;overscroll-behavior:none}
 .screen,.sheet{overscroll-behavior:contain;touch-action:pan-y}
 .datechip{position:relative;overflow:hidden}.datechip input{position:absolute;inset:0;opacity:0;width:100%;height:100%;font-size:16px}
+.rcrow{display:flex;gap:8px;align-items:center;overflow-x:auto;scrollbar-width:none;min-height:30px}
+.rcrow::-webkit-scrollbar{display:none}
+.rcth{position:relative;width:56px;height:56px;border-radius:12px;overflow:hidden;flex:none;background:var(--ink-3)}
+.rcth img{width:100%;height:100%;object-fit:cover;display:block}
+.rcth .x{position:absolute;top:3px;right:3px;width:22px;height:22px;border-radius:11px;background:rgba(0,0,0,.65);display:grid;place-items:center;color:#fff}
+.rcth .x svg{width:12px;height:12px}
+.rcfull{width:100%;border-radius:14px;display:block;background:var(--ink-3)}
+.hstin{display:flex;align-items:center;gap:6px;height:30px;padding:0 11px;border-radius:15px;background:var(--ink-3);flex:1;min-width:0}
+.hstin input{flex:1;min-width:0;background:none;border:0;outline:0;font-weight:700}
 @media (prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important}}
 </style>
 
@@ -394,6 +403,7 @@ const ICONS={
  'trash':'<path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/>',
  'eye':'<path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/>',
  'eye-off':'<path d="M10.6 5.1A10.4 10.4 0 0 1 12 5c6.5 0 10 7 10 7a17.6 17.6 0 0 1-2.6 3.6M6.6 6.6C3.9 8.4 2 12 2 12s3.5 7 10 7c1.9 0 3.5-.6 4.9-1.4"/><path d="M9.9 9.9a3 3 0 0 0 4.2 4.2M3 3l18 18"/>',
+ 'camera':'<path d="M3 8h4l2-3h6l2 3h4v12H3z"/><circle cx="12" cy="13" r="4"/>',
  'trending-up':'<path d="M3 17l6-6 4 4 8-8"/><path d="M15 7h6v6"/>'
 };
 function hydrateIcons(root){(root||document).querySelectorAll('i[data-lucide]').forEach(i=>{const n=i.getAttribute('data-lucide'),st=i.getAttribute('style');
@@ -567,7 +577,7 @@ async function firstSync(){
 async function syncNow(kind){
   if(!AUTH)return;if(syncing){clearTimeout(pushT);pushT=setTimeout(()=>syncNow('push'),1500);return}
   syncing=true;
-  try{await (kind==='push'?push():pull())}
+  try{await (kind==='push'?push():pull());rcSyncPending().catch(()=>{})}
   catch(e){if(AUTH){AUTH.lastErr=sbMsg(e);saveAuth()}}
   finally{syncing=false;if(typeof sheetCtx!=='undefined'&&sheetCtx==='settings')openSettings()}}
 function markDirty(){if(!AUTH)return;AUTH.dirty=true;AUTH.dirtyAt=Date.now();saveAuth();clearTimeout(pushT);pushT=setTimeout(()=>syncNow('push'),1500)}
@@ -582,7 +592,7 @@ function syncText(){if(!AUTH)return '';if(AUTH.lastErr)return 'Not synced · '+A
    Save 10% of gross. RRSP room = 18% of $80k. TFSA 2026 = $7,000. FHSA = $8,000/yr. */
 const TORONTO = {salary:80000, monthly:3500, target:8000, rrspRoom:14400};
 const DEFAULT = ()=>({
-  txns:[], sched:[], rem:[], groups:[], inv:[], accts:[], people:{you:'You'},
+  txns:[], sched:[], rem:[], groups:[], inv:[], accts:[], people:{you:'You'}, biz:{on:false},
   tax:{step:0,prov:'ON',city:'Toronto',salary:TORONTO.salary,bonus:0,pt:0,other:0,freq:26,monthly:TORONTO.monthly,target:TORONTO.target,
        rrspRoom:TORONTO.rrspRoom,tfsaRoom:7000,home:true,fhsaRoom:8000,mode:'bal'},
   fc:{salary:TORONTO.salary,save:.2,ret:.05}
@@ -593,7 +603,7 @@ if(!S||!S.txns)S=DEFAULT();
 function bindState(){const d=DEFAULT();['txns','sched','rem','groups','inv'].forEach(k=>{if(!Array.isArray(S[k]))S[k]=[]});
   if(!Array.isArray(S.accts)){const used=[...new Set([...S.txns,...S.sched].map(t=>t.acct))].filter(k=>LEGACY_ACCTS[k]);
     S.accts=used.map((k,i)=>({id:k,n:LEGACY_ACCTS[k].n,kind:LEGACY_ACCTS[k].kind,c:ACCT_COLORS[i]}))}
-  S.people=S.people||{you:'You'};S.tax={...d.tax,...(S.tax||{})};S.fc={...d.fc,...(S.fc||{})};PEOPLE=S.people}
+  S.biz=S.biz||{on:false};S.people=S.people||{you:'You'};S.tax={...d.tax,...(S.tax||{})};S.fc={...d.fc,...(S.fc||{})};PEOPLE=S.people}
 bindState();
 const V={tview:'plan',fcYr:null,tab:'home',lvl:0,type:'out',acct:null,sel:null,grp:null,nudged:{},newId:null};
 function save(){try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}markDirty()}
@@ -611,7 +621,7 @@ function addRepeat(rep,dt){const d=new Date(dt.getFullYear(),dt.getMonth(),dt.ge
 /* scheduled income/expenses log themselves once their day arrives */
 function rollSched(){let n=0;
   S.sched=S.sched.filter(s=>{let d=fromIso(s.next),g=0;
-    while(d<=TODAY&&g++<500){S.txns.push({id:uid(),type:s.type,amt:s.amt,cat:s.cat,acct:s.acct,m:s.m,date:iso(d),w:false});n++;
+    while(d<=TODAY&&g++<500){S.txns.push({id:uid(),type:s.type,amt:s.amt,cat:s.cat,acct:s.acct,m:s.m,date:iso(d),w:false,biz:s.biz,bcat:s.bcat,slip:s.slip});n++;
       const nx=addRepeat(s.repeat,d);if(!nx)return false;d=nx}
     s.next=iso(d);return true});
   if(n)save();return n}
@@ -810,6 +820,7 @@ function vSplit(){
 /* tax */
 function vTax(){
   if(V.tview==='fc')return vForecast();
+  if(V.tview==='biz'&&S.biz.on)return vBiz();
   const t=S.tax, P=PROV[t.prov], st=t.step;
   const dots=[0,1,2,3].map(i=>`<span class="${i===st?'on':i<st?'done':''}"></span>`).join('');
   const head=`<div class="top">${st>0?`<button class="icon-btn" data-act="tstep" data-v="${st-1}" aria-label="Back">${ico('chevron-left')}</button>`:''}<h1>Tax</h1><div class="steps">${dots}</div>${eyeBtn()}</div>${taxSeg()}`;
@@ -890,7 +901,7 @@ function mf(id,icon,label,val,help){
 }
 
 /* ---------- forecast ---------- */
-function taxSeg(){return `<div class="seg" style="margin-bottom:14px"><button data-act="tview" data-v="plan" aria-pressed="${V.tview!=='fc'}">${ico('landmark')}Plan</button><button data-act="tview" data-v="fc" aria-pressed="${V.tview==='fc'}">${ico('trending-up')}Forecast</button></div>`}
+function taxSeg(){return `<div class="seg" style="margin-bottom:14px"><button data-act="tview" data-v="plan" aria-pressed="${V.tview!=='fc'&&V.tview!=='biz'}">${ico('landmark')}Plan</button><button data-act="tview" data-v="fc" aria-pressed="${V.tview==='fc'}">${ico('trending-up')}Forecast</button>${S.biz.on?`<button data-act="tview" data-v="biz" aria-pressed="${V.tview==='biz'}">${ico('briefcase')}Business</button>`:''}</div>`}
 const SAL_MIN=30000,SAL_MAX=300000;
 function vForecast(){
   const f=S.fc,p=(f.salary-SAL_MIN)/(SAL_MAX-SAL_MIN)*100;
@@ -1030,16 +1041,23 @@ function drawAdd(){
   openSheet(`
   <div class="top" style="height:40px"><div class="seg" style="flex:1"><button data-act="atype" data-v="out" aria-pressed="${A.type==='out'}">Expense</button><button data-act="atype" data-v="in" aria-pressed="${A.type==='in'}">Income</button></div><button class="icon-btn" data-act="close" aria-label="Close">${ico('x')}</button></div>
   <div class="amount-big" id="aAmt">${amtHTML()}</div>
+  <div class="rcrow" style="margin-bottom:10px">${(A.rc||[]).map(r=>`<span class="rcth"><img data-rc="${r.id}" ${RCURL[r.id]?`src="${RCURL[r.id]}"`:''} alt="Receipt"><button class="x" data-act="rcrm" data-v="${r.id}" aria-label="Remove receipt">${ico('x')}</button></span>`).join('')}
+    <label class="chip${A.ocr?' ice':''}">${ico('camera')}<span id="ocrMsg">${A.ocr?esc(A.ocr):(A.rc&&A.rc.length?'Add another':'Scan receipt')}</span><input type="file" id="rcFile" accept="image/*" hidden></label></div>
   <div style="display:flex;flex-direction:column;gap:10px">
     <div class="field">${ico('store')}<input id="aName" placeholder="${A.type==='out'?'Where? e.g. Loblaws':'From? e.g. Payroll'}" value="${esc(A.m)}" maxlength="22" autocomplete="off"></div>
     <div class="chips" id="aSug">${sugHTML(A.m)}</div>
     <div class="catgrid" style="grid-template-columns:repeat(${cats.length},1fr)">${cats.map(c=>`<button class="cat" style="--cc:${CATS[c].c}" data-act="acat" data-v="${c}" aria-pressed="${A.cat===c}" aria-label="${CATS[c].n}" title="${CATS[c].n}">${ico(CATS[c].i)}</button>`).join('')}</div>
     <div class="opt"><span class="lbl">${ico('wallet')}From</span><div class="chips">${S.accts.map(a=>`<button class="chip${A.acct===a.id?' on':''}" data-act="aset" data-k="acct" data-v="${a.id}">${esc(a.n)}</button>`).join('')}<button class="chip${S.accts.length?'':' ice'}" data-act="acctnew" data-v="add" aria-label="Add account">${ico('plus')}${S.accts.length?'':'Add account'}</button></div></div>
     <div class="opt"><span class="lbl">${ico('calendar')}When</span><div class="chips">${WHEN().map(w=>`<button class="chip${A.when===w.k?' on':''}" data-act="aset" data-k="when" data-v="${w.k}">${w.l}</button>`).join('')}<label class="chip datechip${A.when==='custom'?' on':''}">${ico('calendar')}${A.when==='custom'&&A.date?dayStr(A.date):'Pick date'}<input type="date" id="aDate" value="${A.date||TODAY_ISO}" aria-label="Pick a date"></label></div></div>
+    ${S.biz.on?`<div class="opt"><span class="lbl">${ico('briefcase')}Business</span><div class="chips"><button class="switch" role="switch" data-act="abiz" aria-checked="${!!A.biz}" aria-label="Business record"></button></div></div>
+    ${A.biz?(A.type==='out'?`<div class="opt"><span class="lbl">${ico('tag')}CRA line</span><div class="chips">${Object.entries(BCAT).map(([k,x])=>`<button class="chip${A.bcat===k?' on':''}" data-act="aset" data-k="bcat" data-v="${k}">${x.s}</button>`).join('')}</div></div>
+    <div class="opt"><span class="lbl">${ico('receipt')}HST</span><div class="hstin"><span class="mute">$</span><input id="aHst" inputmode="decimal" placeholder="Sales tax paid (optional)" value="${esc(A.hst||'')}"></div></div>`
+     :`<div class="opt"><span class="lbl">${ico('tag')}Slip</span><div class="chips">${Object.entries(BINC).map(([k,x])=>`<button class="chip${A.slip===k?' on':''}" data-act="aset" data-k="slip" data-v="${k}">${x.s}</button>`).join('')}</div></div>`):''}`:''}
     ${A.edit&&A.edit.kind==='txn'?'':`<div class="opt"><span class="lbl">${ico('repeat')}Repeat</span><div class="chips">${chipset('repeat',['Once','Weekly','2 Wks','2×/Mo','Monthly'])}</div></div>`}
     <div class="keypad">${['1','2','3','4','5','6','7','8','9','.','0','del'].map(k=>`<button class="key" data-act="key" data-v="${k}" aria-label="${k==='del'?'Delete':k}">${k==='del'?ico('delete'):k}</button>`).join('')}</div>
     <button class="btn" data-act="asave">${ico('check')}${A.edit?'Save changes':'Save '+CATS[A.cat].n}</button>
   </div>`,'add');
+  loadThumbs($('#sheet'));
 }
 function amtHTML(){return `<span class="cur">${A.type==='in'?'+':''}$</span>${A.amt||'0'}<span class="caret"></span>`}
 function payees(type){const m=new Map();
@@ -1053,27 +1071,178 @@ function whenDate(){if(A.when==='custom'&&A.date)return fromIso(A.date);return (
 function openEdit(kind,id){
   const t=kind==='txn'?S.txns.find(x=>String(x.id)===String(id)):S.sched.find(x=>x.id===id);if(!t)return;
   A={type:t.type,amt:String(+t.amt.toFixed(2)),cat:t.cat,acct:t.acct||'',when:'custom',date:kind==='txn'?t.date:t.next,
-     repeat:kind==='txn'?'Once':t.repeat,remind:t.remind||'Off',m:t.m,edit:{kind,id},fresh:true};drawAdd()}
+     repeat:kind==='txn'?'Once':t.repeat,remind:t.remind||'Off',m:t.m,edit:{kind,id},fresh:true,biz:!!t.biz,bcat:t.bcat||'other',slip:t.slip||'t4a',hst:t.hst?String(t.hst):'',rc:(t.rc||[]).map(id=>({id})),rcOrig:[...(t.rc||[])]};drawAdd()}
 function WHEN(){const n1=new Date(TODAY.getFullYear(),TODAY.getMonth()+1,1);
   return [{k:'yesterday',l:'Yesterday',d:addDays(TODAY,-1)},{k:'today',l:'Today',d:TODAY},{k:'tomorrow',l:'Tomorrow',d:addDays(TODAY,1)},{k:'next1',l:`${MON[n1.getMonth()]} 1`,d:n1}]}
 function saveAdd(){
   const amt=parseFloat(A.amt);if(!amt){toast('Enter an amount first','info');return}
   const name=($('#aName')?.value||'').trim()||CATS[A.cat].n;
-  const d=whenDate(), past=d<=TODAY, w={d};
+  syncA();const d=whenDate(), past=d<=TODAY, w={d};
+  const bz=S.biz.on&&A.biz?{biz:true,bcat:A.type==='out'?(A.bcat||'other'):undefined,slip:A.type==='in'?(A.slip||'t4a'):undefined,hst:A.type==='out'?(parseMoney(A.hst||'')||0):0}:{biz:false,bcat:undefined,slip:undefined,hst:0};
+  const rcIds=(A.rc||[]).map(r=>r.id);(A.rc||[]).filter(r=>r.isNew).forEach(r=>RDB.put(r.id,r.blob).catch(()=>{}));
+  (A.rcOrig||[]).filter(id=>!rcIds.includes(id)).forEach(rcDelete);
+  if(rcIds.length&&AUTH)setTimeout(()=>rcSyncPending().catch(()=>{}),800);
   if(A.acct)S.lastAcct=A.acct;
   if(A.edit){
-    if(A.edit.kind==='txn'){const t=S.txns.find(x=>String(x.id)===String(A.edit.id));if(t)Object.assign(t,{type:A.type,amt,cat:A.cat,acct:A.acct,m:name,date:iso(d)});V.newId=t&&t.id}
-    else{const s2=S.sched.find(x=>x.id===A.edit.id);if(s2){Object.assign(s2,{type:A.type,amt,cat:A.cat,acct:A.acct,m:name,next:iso(d),repeat:A.repeat,remind:A.remind});if(past)rollSched()}}
+    if(A.edit.kind==='txn'){const t=S.txns.find(x=>String(x.id)===String(A.edit.id));if(t)Object.assign(t,{type:A.type,amt,cat:A.cat,acct:A.acct,m:name,date:iso(d),...bz,rc:rcIds});V.newId=t&&t.id}
+    else{const s2=S.sched.find(x=>x.id===A.edit.id);if(s2){Object.assign(s2,{type:A.type,amt,cat:A.cat,acct:A.acct,m:name,next:iso(d),repeat:A.repeat,remind:A.remind,biz:bz.biz,bcat:bz.bcat,slip:bz.slip});if(past)rollSched()}}
     save();closeSheet();toast('Changes saved','check');render(false);return}
-  if(past){const id=uid();S.txns.push({id,type:A.type,amt,cat:A.cat,acct:A.acct,m:name,date:iso(w.d),w:false});V.newId=id}
+  if(past){const id=uid();S.txns.push({id,type:A.type,amt,cat:A.cat,acct:A.acct,m:name,date:iso(w.d),w:false,...bz,rc:rcIds});V.newId=id}
+  else if(rcIds.length){rcIds.forEach(rcDelete)} // a future payment has no receipt yet
   if(!past||A.repeat!=='Once'){
     const next=past?addRepeat(A.repeat,w.d):w.d;
-    S.sched.push({id:'s'+uid(),type:A.type,m:name,amt,cat:A.cat,acct:A.acct,next:iso(next),repeat:A.repeat,remind:A.remind});
+    S.sched.push({id:'s'+uid(),type:A.type,m:name,amt,cat:A.cat,acct:A.acct,next:iso(next),repeat:A.repeat,remind:A.remind,biz:bz.biz,bcat:bz.bcat,slip:bz.slip});
   }
   save();closeSheet();
   toast(past?`${name} ${fmt2(amt)} saved`:`${name} scheduled`, past?'check':'calendar');
   if(V.tab==='home'){V.lvl=0;V.sel=null}render(false);
 }
+
+/* ---------- self-employed: CRA T2125 lines ---------- */
+const BCAT={adv:{n:'Advertising',s:'Ads',l:'8521'},meals:{n:'Meals & entertainment',s:'Meals',l:'8523',half:true},ins:{n:'Insurance',s:'Insurance',l:'8690'},
+  bank:{n:'Interest & bank charges',s:'Bank fees',l:'8710'},lic:{n:'Business taxes, licences, memberships',s:'Licences',l:'8760'},office:{n:'Office expenses',s:'Office',l:'8810'},
+  supplies:{n:'Supplies',s:'Supplies',l:'8811'},prof:{n:'Legal, accounting & professional fees',s:'Pro fees',l:'8860'},rent:{n:'Rent',s:'Rent',l:'8910'},
+  repair:{n:'Repairs & maintenance',s:'Repairs',l:'8960'},travel:{n:'Travel',s:'Travel',l:'9200'},phone:{n:'Phone, internet & utilities',s:'Phone/net',l:'9220'},
+  delivery:{n:'Delivery & shipping',s:'Shipping',l:'9275'},vehicle:{n:'Motor vehicle expenses',s:'Vehicle',l:'9281'},home:{n:'Business-use-of-home',s:'Home office',l:'9945'},
+  equip:{n:'Equipment (capital cost allowance)',s:'Equipment',l:'CCA'},other:{n:'Other expenses (software, subscriptions…)',s:'Other',l:'9270'}};
+const BINC={t4a:{n:'T4A box 048 · fees for services',s:'T4A 048'},t4ac:{n:'T4A box 020 · commissions',s:'T4A 020'},noslip:{n:'No slip (cash, e-Transfer, sales)',s:'No slip'},other:{n:'Other business income',s:'Other'}};
+const bizRecs=yr=>S.txns.filter(t=>t.biz&&t.date&&t.date.slice(0,4)===String(yr));
+function vBiz(){
+  const y0=TODAY.getFullYear(),yr=V.bizYr||y0,R=bizRecs(yr),inc=R.filter(t=>t.type==='in'),exp=R.filter(t=>t.type==='out');
+  const ti=sum(inc,t=>t.amt),te=sum(exp,t=>t.amt),hst=sum(exp,t=>t.hst||0),ded=sum(exp,t=>t.amt*(BCAT[t.bcat]&&BCAT[t.bcat].half?.5:1));
+  const nrc=sum(exp,t=>(t.rc||[]).length),miss=exp.filter(t=>!(t.rc||[]).length).length;
+  const byE=Object.keys(BCAT).map(k=>{const r=exp.filter(t=>(BCAT[t.bcat]?t.bcat:'other')===k);return {k,v:sum(r,t=>t.amt),n:r.length}}).filter(x=>x.n);
+  const byI=Object.keys(BINC).map(k=>{const r=inc.filter(t=>(BINC[t.slip]?t.slip:'noslip')===k);return {k,v:sum(r,t=>t.amt),n:r.length}}).filter(x=>x.n);
+  return `<div class="top"><h1>Tax</h1>${eyeBtn()}</div>${taxSeg()}
+  <div class="chips" style="margin-bottom:12px">${[y0,y0-1].map(y=>`<button class="chip${y===yr?' on':''}" data-act="bizyr" data-v="${y}">${y}</button>`).join('')}</div>
+  <div class="legend" style="margin-top:0"><div class="leg"><span class="lt">${ico('arrow-down-left')}Income</span><span class="lv fit">${fmt2(ti)}</span></div><div class="leg"><span class="lt">${ico('arrow-up-right')}Expenses</span><span class="lv fit">${fmt2(te)}</span></div></div>
+  <div class="list" style="margin-top:10px">
+    <div class="kv"><span class="mute">Net (meals at 50%)</span><span class="v">${fmt2(ti-ded)}</span></div>
+    <div class="kv"><span class="mute">HST / GST you paid</span><span class="v">${fmt2(hst)}</span></div>
+    <div class="kv"><span class="mute">Receipts</span><span class="v">${nrc} attached${miss?` · ${miss} missing`:''}</span></div></div>
+  <div class="sec"><span class="label">Income</span><div class="list">${byI.map(x=>`<div class="row"><span class="grow fit">${BINC[x.k].n}</span><span class="mute small num">${x.n}</span><span class="amt">${fmt2(x.v)}</span></div>`).join('')||empty('Add income with +, then switch on Business','briefcase')}</div></div>
+  <div class="sec"><span class="label">Expenses · CRA T2125 lines</span><div class="list">${byE.map(x=>`<div class="row"><span class="mute small num" style="width:36px;flex:none">${BCAT[x.k].l}</span><span class="grow fit">${BCAT[x.k].n}${BCAT[x.k].half?' (50%)':''}</span><span class="mute small num">${x.n}</span><span class="amt">${fmt2(x.v)}</span></div>`).join('')||empty('No business expenses yet','receipt')}</div></div>
+  <div class="sec"><span class="label">For your accountant</span><div style="display:grid;gap:8px;margin-top:8px">
+    <button class="btn" data-act="pdf" data-v="exp">${ico('download')}Expenses + receipts PDF</button>
+    <button class="btn ghost" data-act="pdf" data-v="inc">${ico('download')}Income PDF</button></div></div>
+  <div class="sec"><div class="legal">${ico('info')}<span>Sorted by CRA T2125 line. Meals count at 50%. Equipment usually goes to capital cost allowance; your accountant decides. Not tax advice.</span></div></div>`}
+
+/* ---------- receipts: stored on this phone (IndexedDB), copied to your private cloud folder when signed in ---------- */
+const RDB={p:null,open(){return this.p||(this.p=new Promise((res,rej)=>{const r=indexedDB.open('glacio-receipts',1);r.onupgradeneeded=()=>r.result.createObjectStore('r');r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error)}))},
+  async tx(mode,fn){const db=await this.open();return new Promise((res,rej)=>{const t=db.transaction('r',mode),st=t.objectStore('r'),q=fn(st);t.oncomplete=()=>res(q&&q.result);t.onerror=()=>rej(t.error)})},
+  put(id,b){return this.tx('readwrite',st=>st.put(b,id))},get(id){return this.tx('readonly',st=>st.get(id))},del(id){return this.tx('readwrite',st=>st.delete(id))}};
+const RCURL={};
+const upSet=()=>{try{return new Set(JSON.parse(localStorage.getItem('glacio-rc-up')||'[]'))}catch(e){return new Set()}};
+function markUp(id,on=true){const u=upSet();on?u.add(id):u.delete(id);try{localStorage.setItem('glacio-rc-up',JSON.stringify([...u]))}catch(e){}}
+const rcPath=id=>`${AUTH.uid}/${id}.jpg`;
+async function rcUpload(id){const blob=await RDB.get(id);if(!blob)return;await ensureToken();
+  const r=await fetch(`${SB.url}/storage/v1/object/receipts/${rcPath(id)}`,{method:'POST',headers:{apikey:SB.key,Authorization:'Bearer '+AUTH.access_token,'Content-Type':'image/jpeg','x-upsert':'true'},body:blob});
+  if(!r.ok){const e=new Error(r.status===404||r.status===400?'Receipt storage not set up':'Receipt upload failed');e.status=r.status;throw e}markUp(id)}
+async function rcDownload(id){if(!AUTH||!navigator.onLine)return null;await ensureToken();
+  const r=await fetch(`${SB.url}/storage/v1/object/authenticated/receipts/${rcPath(id)}`,{headers:{apikey:SB.key,Authorization:'Bearer '+AUTH.access_token}});
+  if(!r.ok)return null;const b=await r.blob();await RDB.put(id,b);markUp(id);return b}
+function rcDelete(id){RDB.del(id).catch(()=>{});markUp(id,false);if(RCURL[id]){URL.revokeObjectURL(RCURL[id]);delete RCURL[id]}
+  if(AUTH)ensureToken().then(()=>fetch(`${SB.url}/storage/v1/object/receipts/${rcPath(id)}`,{method:'DELETE',headers:{apikey:SB.key,Authorization:'Bearer '+AUTH.access_token}})).catch(()=>{})}
+async function rcBlob(id){let b=null;try{b=await RDB.get(id)}catch(e){}if(!b){try{b=await rcDownload(id)}catch(e){}}return b||null}
+async function rcSyncPending(){if(!AUTH||!navigator.onLine)return;const up=upSet();
+  for(const id of new Set(S.txns.flatMap(t=>t.rc||[]))){if(up.has(id))continue;try{await rcUpload(id)}catch(e){AUTH.lastErr=e.message;saveAuth();break}}}
+async function loadThumbs(root){for(const img of root.querySelectorAll('img[data-rc]:not([src])')){const id=img.dataset.rc;
+  if(!RCURL[id]){const b=await rcBlob(id);if(!b){img.alt='Receipt not on this phone';continue}RCURL[id]=URL.createObjectURL(b)}img.src=RCURL[id]}}
+async function shrink(file,max=1700,q=.74){
+  let bmp;try{bmp=await createImageBitmap(file)}catch(e){bmp=await new Promise((res,rej)=>{const im=new Image();im.onload=()=>res(im);im.onerror=rej;im.src=URL.createObjectURL(file)})}
+  const w=bmp.width,h=bmp.height,sc=Math.min(1,max/Math.max(w,h)),c=document.createElement('canvas');c.width=Math.round(w*sc);c.height=Math.round(h*sc);
+  c.getContext('2d').drawImage(bmp,0,0,c.width,c.height);return new Promise(res=>c.toBlob(res,'image/jpeg',q))}
+
+/* ---------- on-device OCR: Tesseract (open source, Apache-2.0) served from this app; nothing is sent anywhere ---------- */
+function loadScript(src){return new Promise((res,rej)=>{if(document.querySelector(`script[data-src="${src}"]`))return res();
+  const el=document.createElement('script');el.src=src;el.dataset.src=src;el.onload=res;el.onerror=()=>rej(new Error('Could not load '+src));document.head.appendChild(el)})}
+let OCRW=null,OCRP=null;
+async function ocrWorker(){if(!OCRW){await loadScript('vendor/tesseract/tesseract.min.js');const base=new URL('vendor/tesseract/',location.href).href;
+  OCRW=Tesseract.createWorker('eng',1,{workerPath:base+'worker.min.js',corePath:base+'core',langPath:base+'lang',gzip:true,workerBlobURL:false,
+    logger:m=>{if(OCRP&&m.status==='recognizing text')OCRP(m.progress)}}).catch(e=>{OCRW=null;throw e})}return OCRW}
+async function prepImage(blob){const bmp=await createImageBitmap(blob),sc=Math.min(2,Math.max(1,1400/bmp.width)),c=document.createElement('canvas');
+  c.width=Math.round(bmp.width*sc);c.height=Math.round(bmp.height*sc);const x=c.getContext('2d');x.drawImage(bmp,0,0,c.width,c.height);
+  const im=x.getImageData(0,0,c.width,c.height),d=im.data,hist=new Uint32Array(256);
+  for(let i=0;i<d.length;i+=4){const g=(d[i]*.299+d[i+1]*.587+d[i+2]*.114)|0;d[i]=g;hist[g]++}
+  let lo=0,hi=255,acc=0,n=d.length/4;for(;lo<255&&(acc+=hist[lo])<n*.02;lo++);acc=0;for(;hi>0&&(acc+=hist[hi])<n*.02;hi--);const span=Math.max(1,hi-lo);
+  for(let i=0;i<d.length;i+=4){const v=Math.max(0,Math.min(255,(d[i]-lo)*255/span));d[i]=d[i+1]=d[i+2]=v}x.putImageData(im,0,0);return c}
+async function ocrText(blob,onProg){OCRP=onProg;try{const w=await ocrWorker();const {data}=await w.recognize(await prepImage(blob));return data.text||''}finally{OCRP=null}}
+/* our own receipt reader: total, date, store, sales tax */
+function parseReceipt(text){
+  const lines=text.split(/\n/).map(l=>l.replace(/\s+/g,' ').trim()).filter(Boolean);
+  const amts=l=>[...l.matchAll(/(?:^|[^\d])\$?\s?(\d{1,3}(?:[ ,]\d{3})*[.,]\s?\d{2}|\d{1,5}[.,]\s?\d{2})(?!\d)/g)].map(m=>{let v=m[1].replace(/\s/g,'');
+    if(/,\d{2}$/.test(v)&&!v.includes('.'))v=v.replace(/,(\d{2})$/,'.$1');return parseFloat(v.replace(/,/g,''))}).filter(v=>v>0&&v<100000);
+  let total=null,best=-1;
+  lines.forEach((l,i)=>{const L=l.toLowerCase();
+    if(/sub\s*-?\s*tot|saving|saved|discount|change|tender|cash\s*back|points|rounding/.test(L))return;
+    const sc=/grand\s*total|total\s*due|amount\s*due|balance\s*due|montant\s*(total|d[uû])/.test(L)?3:/\btota[l1]\b/.test(L)?2:/\b(amount|montant|debit|visa|mastercard|master|amex|credit|purchase|achat)\b/.test(L)?1:-1;
+    if(sc<0)return;let a=amts(l);if(!a.length&&lines[i+1])a=amts(lines[i+1]);if(!a.length)return;const v=a[a.length-1];
+    if(sc>best||(sc===best&&v>total)){best=sc;total=v}});
+  if(total==null){const all=lines.flatMap(amts);if(all.length)total=Math.max(...all)}
+  let hst=0;lines.forEach(l=>{const L=l.toLowerCase();if(/\b(hst|gst|pst|qst|tps|tvq|tax|taxe)\b/.test(L)&&!/total|incl|exempt|#|\bno\b|reg/.test(L)){const a=amts(l);if(a.length){const v=a[a.length-1];if(!total||v<total*.3)hst+=v}}});
+  const MO='jan feb mar apr may jun jul aug sep oct nov dec'.split(' ');
+  const ok=(y,m,d)=>{if(y<100)y+=2000;const t=new Date(y,m-1,d);if(t.getMonth()!==m-1||t.getDate()!==d||t>addDays(TODAY,1)||t<new Date(TODAY.getFullYear()-2,0,1))return null;return t};
+  const pick=(...ds)=>{const v=ds.filter(Boolean).sort((a,b)=>b-a);return v.length?iso(v[0]):null};
+  let date=null;for(const l of lines){const L=l.toLowerCase();let m;
+    if((m=L.match(/\b(20\d{2})[-\/.](\d{1,2})[-\/.](\d{1,2})\b/)))date=pick(ok(+m[1],+m[2],+m[3]));
+    else if((m=L.match(/\b(\d{1,2})[-\/.](\d{1,2})[-\/.](\d{2}|\d{4})\b/)))date=pick(ok(+m[3],+m[1],+m[2]),ok(+m[3],+m[2],+m[1]));
+    else if((m=L.match(/\b(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\.?\s+(\d{1,2}),?\s+(20\d{2}|\d{2})\b/)))date=pick(ok(+m[3],MO.indexOf(m[1])+1,+m[2]));
+    else if((m=L.match(/\b(\d{1,2})\s+(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\.?,?\s+(20\d{2}|\d{2})\b/)))date=pick(ok(+m[3],MO.indexOf(m[2])+1,+m[1]));
+    if(date)break}
+  const skip=/receipt|welcome|thank|invoice|store\s*#|tel|phone|www|http|@|\d{3}[- ]\d{3}[- ]\d{4}|hst|gst|cashier|transaction|order|date|time/i;
+  let merchant='';for(const l of lines.slice(0,6)){const letters=(l.match(/[a-z]/gi)||[]).length;
+    if(letters>=3&&letters>=l.replace(/\s/g,'').length*.6&&!skip.test(l)){merchant=l.replace(/[^A-Za-z0-9&'’ .-]/g,'').trim();break}}
+  if(merchant===merchant.toUpperCase())merchant=merchant.toLowerCase().replace(/\b\w/g,c=>c.toUpperCase());
+  const known=merchant&&payees('out').find(p=>p.m.toLowerCase().startsWith(merchant.toLowerCase().slice(0,5)));
+  return {total,hst:Math.round(hst*100)/100,date,merchant:known?known.m:merchant.slice(0,22),cat:known&&known.cat}}
+async function addReceipt(file){
+  const blob=await shrink(file),id='rc'+uid();RCURL[id]=URL.createObjectURL(blob);
+  syncA();A.rc=[...(A.rc||[]),{id,blob,isNew:true}];A.ocr='Reading receipt…';drawAdd();
+  let r=null;try{r=parseReceipt(await ocrText(blob,p=>{const el=$('#ocrMsg');if(el)el.textContent=`Reading ${Math.round(p*100)}%`}))}catch(e){r=null}
+  if(sheetCtx!=='add')return;syncA();A.ocr=null;
+  if(!r){drawAdd();toast("Couldn't read that receipt. Type it in",'triangle-alert');return}
+  if(r.total&&(!A.amt||A.amtOcr)){A.amt=String(r.total);A.amtOcr=true;A.fresh=true}
+  if(r.merchant&&!A.m)A.m=r.merchant;if(r.cat&&CATS[r.cat])A.cat=r.cat;if(r.date){A.when='custom';A.date=r.date}if(r.hst)A.hst=String(r.hst);
+  drawAdd();toast(r.total?`Read ${fmt2(r.total)}${r.date?' · '+dayStr(r.date):''}. Please check`:"Couldn't find the total. Type it in",'receipt')}
+function syncA(){if(sheetCtx!=='add')return;const n=$('#aName'),h=$('#aHst');if(n)A.m=n.value;if(h)A.hst=h.value}
+
+/* ---------- PDFs for your accountant (made on this phone) ---------- */
+async function shareFile(blob,name,type,title){
+  try{const file=new File([blob],name,{type});if(navigator.canShare&&navigator.canShare({files:[file]})){await navigator.share({files:[file],title});return 'shared'}}
+  catch(e){if(e&&e.name==='AbortError')return 'cancelled'}
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=name;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},1500);return 'saved'}
+const blobURL=b=>new Promise(res=>{const r=new FileReader();r.onload=()=>res(r.result);r.readAsDataURL(b)});
+const imgDim=u=>new Promise(res=>{const i=new Image();i.onload=()=>res({w:i.naturalWidth,h:i.naturalHeight});i.src=u});
+async function makePdf(kind){
+  toast('Making PDF…','download');await loadScript('vendor/jspdf/jspdf.umd.min.js');
+  const {jsPDF}=window.jspdf,doc=new jsPDF({unit:'pt',format:'letter'}),W=612,H=792,M=44;let y=M;
+  const money=n=>(n<0?'-':'')+'$'+Math.abs(n).toLocaleString('en-CA',{minimumFractionDigits:2,maximumFractionDigits:2});
+  const clean=t=>String(t).replace(/[^\x20-\x7EÀ-ÿ]/g,'?');
+  const yr=V.bizYr||TODAY.getFullYear(),isExp=kind==='exp',R=bizRecs(yr).filter(t=>t.type===(isExp?'out':'in')).sort((a,b)=>a.date.localeCompare(b.date));
+  const need=h=>{if(y+h>H-M){doc.addPage();y=M}};
+  doc.setFont('helvetica','bold');doc.setFontSize(18);doc.text(isExp?`Business expenses ${yr}`:`Business income ${yr}`,M,y);y+=18;
+  doc.setFont('helvetica','normal');doc.setFontSize(9.5);doc.setTextColor(110);doc.text(`Prepared ${TODAY_ISO} with Glacio. ${R.length} records.${isExp?' Receipts follow the list.':''}`,M,y);doc.setTextColor(0);y+=26;
+  const groups=isExp?Object.keys(BCAT).map(k=>{const r=R.filter(t=>(BCAT[t.bcat]?t.bcat:'other')===k);return {l:`${BCAT[k].l}  ${BCAT[k].n}${BCAT[k].half?' (50% deductible)':''}`,n:r.length,v:sum(r,t=>t.amt)}})
+    :Object.keys(BINC).map(k=>{const r=R.filter(t=>(BINC[t.slip]?t.slip:'noslip')===k);return {l:BINC[k].n.replace('·','-'),n:r.length,v:sum(r,t=>t.amt)}});
+  doc.setFont('helvetica','bold');doc.setFontSize(11);doc.text('Summary',M,y);y+=16;doc.setFontSize(10);doc.setFont('helvetica','normal');
+  groups.filter(g=>g.n).forEach(g=>{need(15);doc.text(clean(g.l),M,y);doc.text(String(g.n),W-M-90,y,{align:'right'});doc.text(money(g.v),W-M,y,{align:'right'});y+=15});
+  doc.setDrawColor(180);doc.line(M,y-9,W-M,y-9);doc.setFont('helvetica','bold');doc.text('Total',M,y+3);doc.text(money(sum(R,t=>t.amt)),W-M,y+3,{align:'right'});y+=18;
+  if(isExp){doc.setFont('helvetica','normal');doc.text('HST / GST paid (input tax credits)',M,y);doc.text(money(sum(R,t=>t.hst||0)),W-M,y,{align:'right'});y+=15;
+    doc.text('Meals & entertainment at 50%',M,y);doc.text(money(sum(R.filter(t=>t.bcat==='meals'),t=>t.amt/2)),W-M,y,{align:'right'});y+=15}
+  y+=14;const num={};let n=0;R.forEach(t=>(t.rc||[]).forEach(id=>num[id]=++n));
+  const cols=isExp?[[M,'Date'],[M+62,'Paid to'],[M+212,'CRA line'],[W-M-150,'HST'],[W-M-80,'Amount'],[W-M,'Receipt']]:[[M,'Date'],[M+62,'From'],[M+240,'Type'],[W-M,'Amount']];
+  const head=()=>{doc.setFont('helvetica','bold');doc.setFontSize(9);cols.forEach(([x,h],i)=>doc.text(h,x,y,i>=(isExp?3:3)?{align:'right'}:undefined));y+=6;doc.line(M,y,W-M,y);y+=12;doc.setFont('helvetica','normal')};
+  need(40);doc.setFont('helvetica','bold');doc.setFontSize(11);doc.text('Records',M,y);y+=16;head();
+  R.forEach(t=>{if(y+14>H-M){doc.addPage();y=M;head()}doc.setFontSize(9);
+    const row=isExp?[t.date,clean(t.m).slice(0,28),(BCAT[t.bcat]||BCAT.other).l+' '+(BCAT[t.bcat]||BCAT.other).s,t.hst?money(t.hst):'',money(t.amt),(t.rc||[]).map(id=>'R'+num[id]).join(' ')||'missing']
+      :[t.date,clean(t.m).slice(0,34),(BINC[t.slip]||BINC.noslip).s,money(t.amt)];
+    row.forEach((v,i)=>doc.text(String(v),cols[i][0],y,i>=3?{align:'right'}:undefined));y+=14});
+  if(isExp){for(const t of R)for(const id of (t.rc||[])){const b=await rcBlob(id);doc.addPage();y=M;doc.setFont('helvetica','bold');doc.setFontSize(11);
+      doc.text(clean(`Receipt R${num[id]}  ${t.date}  ${t.m}  ${money(t.amt)}`),M,y);
+      if(!b){doc.setFont('helvetica','normal');doc.text('Image not available on this phone.',M,y+20);continue}
+      const u=await blobURL(b),d=await imgDim(u),sc=Math.min((W-2*M)/d.w,(H-2*M-20)/d.h);doc.addImage(u,'JPEG',M,y+12,d.w*sc,d.h*sc)}}
+  const out=await shareFile(doc.output('blob'),`glacio-${isExp?'expenses':'income'}-${yr}.pdf`,'application/pdf',isExp?'Business expenses':'Business income');
+  if(out!=='cancelled')toast(out==='shared'?'PDF ready':'PDF saved','download')}
 
 /* settings + backup */
 function openSettings(){
@@ -1090,6 +1259,8 @@ function openSettings(){
         <div style="display:grid;grid-template-columns:1fr 2fr;gap:8px"><button class="btn ghost" data-act="sbback">Back</button><button class="btn" data-act="sbverify">${ico('check')}Sign in</button></div>`
        :`<button class="btn" data-act="sbsend">${ico('arrow-right')}Email me a code</button>`}
       <div class="mute small" style="white-space:normal">Saves your data to Glacio's cloud so a new phone or the App Store version gets it back. Only you can read it.</div></div>`}
+  <div class="sec"><span class="label">Self-employed</span><div class="list" style="background:var(--ink-3);margin-top:8px"><div class="mfield"><label>I get a T4A or run a business</label><button class="switch" role="switch" data-act="bizon" aria-checked="${!!S.biz.on}" aria-label="Self-employed records"></button></div></div>
+    <div class="mute small" style="margin-top:8px;white-space:normal">Adds a Business switch when you add records, CRA expense lines, receipt PDFs for your accountant (Tax → Business).</div></div>
   <div class="sec"><span class="label">Accounts</span>
   <div class="list" style="background:var(--ink-3);margin-top:8px">${S.accts.map(a=>{const x=acct(a.id);return `<div class="row"><span class="ic cc" style="--cc:${a.c}">${ico(x.i)}</span><button class="grow fit" style="text-align:left" data-act="acedit" data-v="${a.id}">${esc(a.n)}</button><span class="mute small">${x.k}</span><button class="mini-act" data-act="acedit" data-v="${a.id}" aria-label="Edit ${esc(a.n)}">${ico('pencil')}</button><button class="mini-act" data-act="acdel" data-v="${a.id}" aria-label="Remove ${esc(a.n)}">${ico('trash')}</button></div>`}).join('')}
     <button class="row" data-act="acctnew" data-v="settings"><span class="ic ice">${ico('plus')}</span><span class="grow">Add account</span>${ico('chevron-right')}</button></div></div>
@@ -1124,17 +1295,24 @@ function importData(file){const r=new FileReader();
 function openItem(kind,id){
   let title,icon,rows,cc='';
   if(kind==='txn'){const t=S.txns.find(x=>String(x.id)===String(id));if(!t)return;const c=CATS[t.cat];title=t.m;icon=c.i;cc=c.c;
-    rows=[['Amount',(t.type==='in'?'+':'')+fmt2(t.amt)],['Category',c.n],['Account',acct(t.acct).n],['Date',dayStr(t.date)]]}
+    rows=[['Amount',(t.type==='in'?'+':'')+fmt2(t.amt)],['Category',c.n],['Account',acct(t.acct).n],['Date',dayStr(t.date)]];
+    if(t.biz)rows.push(['Business',t.type==='out'?`${(BCAT[t.bcat]||BCAT.other).l} ${(BCAT[t.bcat]||BCAT.other).s}`:(BINC[t.slip]||BINC.noslip).s]);if(t.hst)rows.push(['HST paid',fmt2(t.hst)]);
+    var rcs=t.rc||[],tid=t.id}
   else if(kind==='rem'){const r=S.rem.find(x=>x.id===id);if(!r)return;title=r.n;icon=remIcon(r.kind);
     rows=[['Amount',fmt2(r.amt)],['Due',`Day ${r.day} each month`],['Next',dayStr(iso(nextDay(r.day)))]]}
   else{const s=S.sched.find(x=>x.id===id);if(!s)return;const c=CATS[s.cat];title=s.m;icon=c.i;cc=c.c;
     rows=[['Amount',(s.type==='in'?'+':'')+fmt2(s.amt)],['Repeat',s.repeat],['Next',dayStr(s.next)],['Account',acct(s.acct).n]]}
   openSheet(`<div class="top" style="height:40px"><span class="ic${cc?' cc':' ice'}" ${cc?`style="--cc:${cc}"`:''}>${ico(icon)}</span><h2 class="fit">${esc(title)}</h2><button class="icon-btn" data-act="close" aria-label="Close">${ico('x')}</button></div>
   <div class="list" style="background:var(--ink-3)">${rows.map(([k,v])=>`<div class="kv"><span class="mute">${k}</span><span class="v">${esc(v)}</span></div>`).join('')}</div>
+  ${typeof rcs!=='undefined'&&rcs.length?`<div class="rcrow" style="margin-top:12px">${rcs.map(id=>`<button class="rcth" data-act="rcview" data-v="${id}" data-x="${esc(String(tid))}" aria-label="Open receipt"><img data-rc="${id}" alt="Receipt"></button>`).join('')}</div>`:''}
   <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:14px"><button class="btn ghost" data-act="delitem" data-k="${kind}" data-v="${id}">${ico('trash')}Delete</button><button class="btn" data-act="edititem" data-k="${kind}" data-v="${id}">${ico('pencil')}Edit</button></div>`,'item');
+  loadThumbs($('#sheet'));
 }
+function openRcView(id,txnId){
+  openSheet(`<div class="top" style="height:40px"><button class="icon-btn" data-act="txn" data-v="${esc(txnId)}" aria-label="Back">${ico('chevron-left')}</button><h2>Receipt</h2><button class="icon-btn" data-act="close" aria-label="Close">${ico('x')}</button></div>
+  <img class="rcfull" data-rc="${id}" alt="Receipt">`,'rcview');loadThumbs($('#sheet'))}
 function delItem(kind,id){
-  if(kind==='txn')S.txns=S.txns.filter(x=>String(x.id)!==String(id));
+  if(kind==='txn'){const t=S.txns.find(x=>String(x.id)===String(id));(t&&t.rc||[]).forEach(rcDelete);S.txns=S.txns.filter(x=>String(x.id)!==String(id))}
   else if(kind==='rem')S.rem=S.rem.filter(x=>x.id!==id);
   else S.sched=S.sched.filter(x=>x.id!==id);
   save();closeSheet();render(false);toast('Deleted','trash');
@@ -1294,6 +1472,12 @@ device.addEventListener('click',e=>{
     case 'acct': V.acct=v;V.lvl=2;render();break;
     case 'back': if(V.tab==='split'){V.grp=null}else{V.lvl=Math.max(0,V.lvl-1);V.sel=null}render();break;
     case 'settings': openSettings();break;
+    case 'bizon': S.biz.on=!S.biz.on;if(!S.biz.on&&V.tview==='biz')V.tview='plan';save();openSettings();render(false);break;
+    case 'abiz': syncA();A.biz=!A.biz;A.bcat=A.bcat||'other';A.slip=A.slip||'t4a';drawAdd();break;
+    case 'bizyr': V.bizYr=+v;render(false);break;
+    case 'pdf': makePdf(v).catch(e=>toast('Could not make the PDF: '+e.message,'triangle-alert'));break;
+    case 'rcrm': syncA();A.rc=(A.rc||[]).filter(r=>r.id!==v);if(!(A.rcOrig||[]).includes(v)&&RCURL[v]){URL.revokeObjectURL(RCURL[v]);delete RCURL[v]}drawAdd();break;
+    case 'rcview': openRcView(v,b.dataset.x);break;
     case 'edititem': if(b.dataset.k==='rem')openEditRem(v);else openEdit(b.dataset.k,v);break;
     case 'acedit': openAcctEdit(v);break;
     case 'provpick': openProvPick();break;
@@ -1377,6 +1561,7 @@ device.addEventListener('click',e=>{
 function closeIf(){if(!$('#sheetWrap').hidden)closeSheet()}
 function syncTax(){document.querySelectorAll('#screen [data-f]').forEach(i=>{S.tax[i.dataset.f]=parseMoney(i.value)})}
 device.addEventListener('change',e=>{if(e.target.id==='importFile'&&e.target.files[0])importData(e.target.files[0]);
+  if(e.target.id==='rcFile'&&e.target.files[0]){const f=e.target.files[0];e.target.value='';addReceipt(f).catch(()=>{A.ocr=null;if(sheetCtx==='add')drawAdd();toast("Couldn't use that photo",'triangle-alert')})}
   if(e.target.id==='aDate'&&e.target.value){A.m=$('#aName')?.value||A.m;A.when='custom';A.date=e.target.value;drawAdd()}});
 device.addEventListener('input',e=>{
   const i=e.target;

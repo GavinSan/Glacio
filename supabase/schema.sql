@@ -40,3 +40,25 @@ end $$;
 drop trigger if exists glacio_touch on public.glacio_state;
 create trigger glacio_touch before insert or update on public.glacio_state
   for each row execute function public.glacio_touch();
+
+-- ---------------------------------------------------------------------------
+-- Receipts (photos): a private storage bucket. Each user can only touch files
+-- in their own folder: receipts/<their user id>/...
+insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+values ('receipts', 'receipts', false, 5242880, array['image/jpeg'])
+on conflict (id) do nothing;
+
+drop policy if exists "receipts read own"   on storage.objects;
+drop policy if exists "receipts add own"    on storage.objects;
+drop policy if exists "receipts change own" on storage.objects;
+drop policy if exists "receipts delete own" on storage.objects;
+
+create policy "receipts read own" on storage.objects for select to authenticated
+  using (bucket_id = 'receipts' and (storage.foldername(name))[1] = (select auth.uid())::text);
+create policy "receipts add own" on storage.objects for insert to authenticated
+  with check (bucket_id = 'receipts' and (storage.foldername(name))[1] = (select auth.uid())::text);
+create policy "receipts change own" on storage.objects for update to authenticated
+  using (bucket_id = 'receipts' and (storage.foldername(name))[1] = (select auth.uid())::text)
+  with check (bucket_id = 'receipts' and (storage.foldername(name))[1] = (select auth.uid())::text);
+create policy "receipts delete own" on storage.objects for delete to authenticated
+  using (bucket_id = 'receipts' and (storage.foldername(name))[1] = (select auth.uid())::text);
