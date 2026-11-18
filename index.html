@@ -510,6 +510,66 @@ function plan(t){
     mBefore:marginalAt(t.prov,emp,other,0),mAfter:marginalAt(t.prov,emp,other,fhsa+rrsp),top};
 }
 
+/* ---------- cloud sync (Supabase) ----------
+   One JSON row per user (table glacio_state, row-level security). Sign-in = email + one-time code,
+   because an email link would open Safari instead of the home-screen app.
+   Rule: changes upload ~1.5s after you make them; on open the newer copy wins. */
+const SB={url:'https://dcuteqqnwlideecydtfn.supabase.co',key:'sb_publishable_DbdGIimTKvpNHjgtXy4U6Q_8y_kpWub'}; // publishable key: safe in the app
+const AKEY='glacio-auth';
+let AUTH=null; try{AUTH=JSON.parse(localStorage.getItem(AKEY))}catch(e){AUTH=null}
+let pushT=null, syncing=false;
+function saveAuth(){try{AUTH?localStorage.setItem(AKEY,JSON.stringify(AUTH)):localStorage.removeItem(AKEY)}catch(e){}}
+async function sbFetch(path,{method='GET',body,auth=false,headers={}}={}){
+  const h={apikey:SB.key,'Content-Type':'application/json',...headers};
+  if(auth){await ensureToken();h.Authorization='Bearer '+AUTH.access_token}
+  const r=await fetch(SB.url+path,{method,headers:h,body:body?JSON.stringify(body):undefined});
+  const txt=await r.text();let j=null;try{j=txt?JSON.parse(txt):null}catch(e){}
+  if(!r.ok){const err=new Error((j&&(j.msg||j.message||j.error_description||j.error))||('HTTP '+r.status));err.status=r.status;err.code=j&&(j.error_code||j.code);throw err}
+  return j}
+function takeSession(j){AUTH={...(AUTH||{}),access_token:j.access_token,refresh_token:j.refresh_token,
+  expires_at:j.expires_at||Math.floor(Date.now()/1000)+(j.expires_in||3600),email:(j.user&&j.user.email)||(AUTH&&AUTH.email),uid:(j.user&&j.user.id)||(AUTH&&AUTH.uid)};saveAuth()}
+async function ensureToken(){
+  if(!AUTH)throw new Error('Signed out');
+  if(AUTH.expires_at-60>Date.now()/1000)return;
+  try{takeSession(await sbFetch('/auth/v1/token?grant_type=refresh_token',{method:'POST',body:{refresh_token:AUTH.refresh_token}}))}
+  catch(e){if(e.status===400||e.status===401){AUTH=null;saveAuth();toast('Signed out of sync. Sign in again in Settings','info')}throw e}}
+function sbMsg(e){
+  if(!e||e instanceof TypeError||!navigator.onLine)return 'No connection. Try again';
+  if(e.status===429||/rate/i.test(e.message))return 'Too many tries. Wait a few minutes';
+  if(e.code==='otp_expired'||/expired|invalid/i.test(e.message))return 'That code is wrong or expired';
+  if(e.code==='42501')return 'Cloud table needs permission (see setup)';
+  return e.message}
+const sendCode=email=>sbFetch('/auth/v1/otp',{method:'POST',body:{email,create_user:true}});
+async function verifyCode(email,token){takeSession(await sbFetch('/auth/v1/verify',{method:'POST',body:{type:'email',email,token}}));await firstSync()}
+async function pullRow(){const r=await sbFetch(`/rest/v1/glacio_state?select=data,updated_at&user_id=eq.${AUTH.uid}`,{auth:true});return (r&&r[0])||null}
+async function push(){
+  const r=await sbFetch('/rest/v1/glacio_state?on_conflict=user_id',{method:'POST',auth:true,
+    headers:{Prefer:'resolution=merge-duplicates,return=representation'},body:{user_id:AUTH.uid,data:S,version:2}});
+  AUTH.lastRemoteAt=r[0].updated_at;AUTH.dirty=false;AUTH.lastSync=Date.now();AUTH.lastErr=null;saveAuth()}
+function applyRemote(row){
+  S=row.data;bindState();try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}
+  AUTH.lastRemoteAt=row.updated_at;AUTH.dirty=false;AUTH.lastSync=Date.now();AUTH.lastErr=null;saveAuth();
+  V.lvl=0;V.sel=null;V.grp=null;rollSched();render(false)}
+async function pull(){
+  const row=await pullRow();
+  if(!row)return push();
+  if(row.updated_at===AUTH.lastRemoteAt){if(AUTH.dirty)return push();AUTH.lastSync=Date.now();AUTH.lastErr=null;saveAuth();return}
+  if(AUTH.dirty&&(AUTH.dirtyAt||0)>Date.parse(row.updated_at))return push(); // this phone changed more recently
+  applyRemote(row)}
+async function firstSync(){
+  const row=await pullRow(),localHas=['txns','sched','rem','groups','inv','accts'].some(k=>S[k].length);
+  if(row&&(!localHas||confirm(`Your cloud already has Glacio data (saved ${String(row.updated_at).slice(0,10)}).\n\nOK: use the cloud data on this phone\nCancel: replace the cloud copy with this phone's data`)))applyRemote(row);
+  else await push()}
+async function syncNow(kind){
+  if(!AUTH)return;if(syncing){clearTimeout(pushT);pushT=setTimeout(()=>syncNow('push'),1500);return}
+  syncing=true;
+  try{await (kind==='push'?push():pull())}
+  catch(e){if(AUTH){AUTH.lastErr=sbMsg(e);saveAuth()}}
+  finally{syncing=false;if(typeof sheetCtx!=='undefined'&&sheetCtx==='settings')openSettings()}}
+function markDirty(){if(!AUTH)return;AUTH.dirty=true;AUTH.dirtyAt=Date.now();saveAuth();clearTimeout(pushT);pushT=setTimeout(()=>syncNow('push'),1500)}
+function syncText(){if(!AUTH)return '';if(AUTH.lastErr)return 'Not synced · '+AUTH.lastErr;if(AUTH.dirty)return 'Waiting to sync';
+  if(!AUTH.lastSync)return 'Not synced yet';const m=Math.round((Date.now()-AUTH.lastSync)/6e4);return m<1?'Synced just now':m<60?`Synced ${m} min ago`:`Synced ${dayStr(iso(new Date(AUTH.lastSync)))}`}
+
 /* ---------- state ---------- */
 /* Starting values = a typical Toronto renter, late 2026 (edit any of them in Tax).
    Salary: Toronto CMA mean hourly wage ~$41 (TWIG, Apr 2026) x 37.5 h x 52 = ~$80,000.
@@ -532,7 +592,7 @@ function bindState(){const d=DEFAULT();['txns','sched','rem','groups','inv'].for
   S.people=S.people||{you:'You'};S.tax={...d.tax,...(S.tax||{})};S.fc={...d.fc,...(S.fc||{})};PEOPLE=S.people}
 bindState();
 const V={tview:'plan',fcYr:null,tab:'home',lvl:0,type:'out',acct:null,sel:null,grp:null,nudged:{},newId:null};
-function save(){try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}}
+function save(){try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}markDirty()}
 try{navigator.storage&&navigator.storage.persist&&navigator.storage.persist()}catch(e){}
 const monthTx=()=>S.txns.filter(t=>t.date&&t.date.slice(0,7)===MONTH_KEY);
 const byNewest=(a,b)=>b.date.localeCompare(a.date)||b.id-a.id;
@@ -996,16 +1056,28 @@ function saveAdd(){
 /* settings + backup */
 function openSettings(){
   openSheet(`<div class="top" style="height:40px"><span class="ic ice">${ico('settings')}</span><h2>Settings</h2><button class="icon-btn" data-act="close" aria-label="Close">${ico('x')}</button></div>
-  <span class="label">Accounts</span>
+  <span class="label">Cloud sync</span>
+  ${AUTH?`<div class="list" style="background:var(--ink-3);margin-top:8px">
+      <div class="kv"><span class="mute">Signed in</span><span class="v fit" style="max-width:62%">${esc(AUTH.email||'')}</span></div>
+      <div class="kv"><span class="mute">Status</span><span class="v fit" style="max-width:70%">${esc(syncText())}</span></div>
+      <button class="row" data-act="sbsync"><span class="ic ice">${ico('rotate-ccw')}</span><span class="grow">Sync now</span></button>
+      <button class="row" data-act="sbout"><span class="ic">${ico('x')}</span><span class="grow">Sign out</span></button></div>`
+   :`<div style="display:flex;flex-direction:column;gap:8px;margin-top:8px">
+      <div class="field">${ico('tag')}<input id="sbEmail" type="email" inputmode="email" autocomplete="email" autocapitalize="off" placeholder="Your email" value="${esc(V.sbEmail||'')}"></div>
+      ${V.sbSent?`<div class="field">${ico('key-round')}<input id="sbCode" inputmode="numeric" autocomplete="one-time-code" maxlength="10" placeholder="Code from the email"></div>
+        <div style="display:grid;grid-template-columns:1fr 2fr;gap:8px"><button class="btn ghost" data-act="sbback">Back</button><button class="btn" data-act="sbverify">${ico('check')}Sign in</button></div>`
+       :`<button class="btn" data-act="sbsend">${ico('arrow-right')}Email me a code</button>`}
+      <div class="mute small" style="white-space:normal">Saves your data to Glacio's cloud so a new phone or the App Store version gets it back. Only you can read it.</div></div>`}
+  <div class="sec"><span class="label">Accounts</span>
   <div class="list" style="background:var(--ink-3);margin-top:8px">${S.accts.map(a=>{const x=acct(a.id);return `<div class="row"><span class="ic cc" style="--cc:${a.c}">${ico(x.i)}</span><span class="grow fit">${esc(a.n)}</span><span class="mute small">${x.k}</span><button class="mini-act" data-act="acdel" data-v="${a.id}" aria-label="Remove ${esc(a.n)}">${ico('trash')}</button></div>`}).join('')}
-    <button class="row" data-act="acctnew" data-v="settings"><span class="ic ice">${ico('plus')}</span><span class="grow">Add account</span>${ico('chevron-right')}</button></div>
+    <button class="row" data-act="acctnew" data-v="settings"><span class="ic ice">${ico('plus')}</span><span class="grow">Add account</span>${ico('chevron-right')}</button></div></div>
   <div class="sec"><span class="label">Backup</span>
   <div class="list" style="background:var(--ink-3);margin-top:8px">
     <button class="row" data-act="export"><span class="ic ice">${ico('download')}</span><span class="grow">Export backup</span>${ico('chevron-right')}</button>
     <button class="row" data-act="import"><span class="ic">${ico('upload')}</span><span class="grow">Restore from backup</span>${ico('chevron-right')}</button>
   </div>
   <input type="file" id="importFile" accept="application/json,.json" hidden>
-  <div class="mute small" style="margin-top:8px;white-space:normal">Your data lives only on this phone. Export a backup now and then. You can load it into the App Store version later.</div></div>
+  <div class="mute small" style="margin-top:8px;white-space:normal">${AUTH?'Also keep a file copy now and then.':'Without cloud sync, your data lives only on this phone. Export a backup now and then.'}</div></div>
   <div class="sec"><span class="label">Apple Wallet</span><div class="mute small" style="margin-top:6px;white-space:normal">Logging Apple Pay taps automatically needs the App Store version. Until then, add records with +.</div></div>
   <div class="sec"><button class="btn ghost" data-act="wipe">${ico('trash')}Erase all data</button></div>`,'settings');
 }
@@ -1021,7 +1093,7 @@ async function exportData(){
 function importData(file){const r=new FileReader();
   r.onload=()=>{try{const j=JSON.parse(r.result),d=j&&j.data;
       if(!d||!Array.isArray(d.txns))throw 0;
-      if(!confirm(`Replace everything on this phone with the backup from ${String(j.at||'').slice(0,10)||'that file'}?`))return;
+      if(!confirm(`Replace everything on this phone${AUTH?' and in your cloud':''} with the backup from ${String(j.at||'').slice(0,10)||'that file'}?`))return;
       S=d;bindState();save();closeSheet();V.tab='home';V.lvl=0;V.sel=null;V.grp=null;render();toast('Backup restored','upload')}
     catch(e){toast('That file is not a Glacio backup','triangle-alert')}};
   r.readAsText(file)}
@@ -1190,6 +1262,14 @@ device.addEventListener('click',e=>{
     case 'acct': V.acct=v;V.lvl=2;render();break;
     case 'back': if(V.tab==='split'){V.grp=null}else{V.lvl=Math.max(0,V.lvl-1);V.sel=null}render();break;
     case 'settings': openSettings();break;
+    case 'sbsend':{const em=$('#sbEmail').value.trim();if(!/^\S+@\S+\.\S+$/.test(em)){toast('Enter your email','info');return}
+      V.sbEmail=em;b.disabled=true;sendCode(em).then(()=>{V.sbSent=true;openSettings();toast('Code sent. Check your email','check')}).catch(err=>{b.disabled=false;toast(sbMsg(err),'triangle-alert')});break}
+    case 'sbverify':{const code=$('#sbCode').value.replace(/\s/g,'');if(!code){toast('Enter the code','info');return}
+      b.disabled=true;verifyCode(V.sbEmail,code).then(()=>{V.sbSent=false;openSettings();toast('Signed in. Sync is on','check')}).catch(err=>{b.disabled=false;if(AUTH&&AUTH.uid){AUTH.lastErr=sbMsg(err);saveAuth();openSettings()}toast(sbMsg(err),'triangle-alert')});break}
+    case 'sbback': V.sbSent=false;openSettings();break;
+    case 'sbsync': syncNow(AUTH&&AUTH.dirty?'push':'pull');toast('Syncing…','rotate-ccw');break;
+    case 'sbout': if(AUTH&&confirm('Sign out of cloud sync? Your data stays on this phone.')){const tok=AUTH.access_token;
+      fetch(SB.url+'/auth/v1/logout',{method:'POST',headers:{apikey:SB.key,Authorization:'Bearer '+tok}}).catch(()=>{});AUTH=null;saveAuth();clearTimeout(pushT);openSettings();toast('Signed out','info')}break;
     case 'acctnew': if(v==='add'&&$('#aName'))A.m=$('#aName').value; openAcctNew(v);break;
     case 'ackind': AC.kind=v;drawAcctNew();break;
     case 'acsave': saveAcct();break;
@@ -1206,7 +1286,7 @@ device.addEventListener('click',e=>{
     case 'ssm': ssPick(+v);break;
     case 'export': exportData();break;
     case 'import': $('#importFile').click();break;
-    case 'wipe': if(confirm('Erase all Glacio data on this phone? Export a backup first if you want to keep it.')){S=DEFAULT();bindState();save();closeSheet();V.tab='home';V.lvl=0;V.sel=null;V.grp=null;render();toast('All data erased','trash')}break;
+    case 'wipe': if(confirm(AUTH?'Erase all Glacio data on this phone? You will be signed out; your cloud copy stays.':'Erase all Glacio data on this phone? Export a backup first if you want to keep it.')){if(AUTH){AUTH=null;saveAuth();clearTimeout(pushT)}S=DEFAULT();bindState();save();closeSheet();V.tab='home';V.lvl=0;V.sel=null;V.grp=null;render();toast('All data erased','trash')}break;
     case 'txn': openItem('txn',v);break;
     case 'remopen': openItem('rem',v);break;
     case 'schedopen': openItem('sched',v);break;
@@ -1313,7 +1393,9 @@ device.addEventListener('pointerover',e=>{const b=e.target.closest('[data-yr]');
 
 render();
 if('serviceWorker' in navigator&&(location.protocol==='https:'||location.hostname==='localhost'))navigator.serviceWorker.register('sw.js').catch(()=>{});
-document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'&&iso(new Date())!==TODAY_ISO)location.reload()});
+document.addEventListener('visibilitychange',()=>{if(document.visibilityState!=='visible')return;if(iso(new Date())!==TODAY_ISO){location.reload();return}syncNow('pull')});
+window.addEventListener('online',()=>syncNow(AUTH&&AUTH.dirty?'push':'pull'));
+syncNow('pull');
 </script>
 
 </html>

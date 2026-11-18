@@ -14,6 +14,11 @@ create table if not exists public.glacio_state (
 
 alter table public.glacio_state enable row level security;
 
+-- Signed-in users may use the table (row-level security below still limits them to their own row).
+-- Newer Supabase projects don't grant this automatically. The public (anon) role gets nothing.
+grant select, insert, update, delete on table public.glacio_state to authenticated;
+revoke all on table public.glacio_state from anon;
+
 drop policy if exists "read own state"   on public.glacio_state;
 drop policy if exists "insert own state" on public.glacio_state;
 drop policy if exists "update own state" on public.glacio_state;

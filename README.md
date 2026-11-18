@@ -45,4 +45,4 @@ Design rules: about 70% black, 25% white and 5% light blue for controls and moti
 - **Split nudges** need user accounts and push notifications (for example CloudKit sharing or Firebase).
 - **Legal:** All tax output is labelled as an educational estimate, not advice. Have a lawyer review the terms before App Store release.
 - **Notifications:** the web app cannot send bill alerts on iPhone without a push server, so reminders are only highlighted inside the app. Real alerts come with the App Store version.
-- **Cloud database (in progress):** `supabase/schema.sql` creates one row per user with row-level security, so each person can only read their own data. Sign-in and sync get switched on once the Supabase project exists.
+- **Cloud sync:** Settings → Cloud sync. Sign in with your email and a one-time code (a link would open Safari instead of the home-screen app). Data is one JSON row per user in Supabase (`supabase/schema.sql`), protected by row-level security. Changes upload about 1.5 s after you make them; when the app opens, the newer copy wins. Erasing a phone never touches the cloud copy.
