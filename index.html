@@ -7,6 +7,9 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<script>(function(){var p="dark";try{p=localStorage.getItem("glacio-theme")||"dark"}catch(e){}
+var l=p==="light"||(p==="system"&&matchMedia("(prefers-color-scheme: light)").matches);document.documentElement.dataset.theme=l?"light":"dark";
+if(l){document.querySelector('meta[name="apple-mobile-web-app-status-bar-style"]').content="default";document.querySelector('meta[name="theme-color"]').content="#F3F5F8"}})()</script>
 <meta name="apple-mobile-web-app-title" content="Glacio">
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
 <link rel="icon" type="image/png" href="icons/icon-192.png">
@@ -21,10 +24,11 @@
   --ink:#0A0C0F; --ink-2:#111419; --ink-3:#181C22; --ink-4:#222831; --line:#262C35;
   --paper:#F3F5F7; --paper-2:#C5CCD4; --mute:#8A939F; --dim:#5B6470;
   --ice:#5CC8FF; --ice-ink:#021625; --ice-soft:rgba(92,200,255,.16); --ice-glow:rgba(92,200,255,.55);
-  --warn:#FFC98A;
+  --warn:#FFC98A; --danger:#E5484D; --stage:#141a22; --hero-mid:#E8F7FF;
   --f:"Manrope", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   color-scheme:dark;
 }
+html[data-theme="light"]{--ink:#F3F5F8;--ink-2:#FFFFFF;--ink-3:#ECEFF3;--ink-4:#DDE2E8;--line:#E3E7EC;--paper:#0C0F13;--paper-2:#3A424C;--mute:#646D79;--dim:#8C95A0;--ice:#0A86D2;--ice-ink:#FFFFFF;--ice-soft:rgba(10,134,210,.12);--ice-glow:rgba(10,134,210,.30);--stage:#E6EBF1;--hero-mid:#063F66;color-scheme:light}
 html,body{height:100%}
 body{background:var(--ink);color:var(--paper);font-family:var(--f);font-size:15px;-webkit-font-smoothing:antialiased;overflow:hidden}
 *{box-sizing:border-box}
@@ -36,7 +40,7 @@ input{font:inherit;color:inherit}
 i[data-lucide],svg.lucide{width:20px;height:20px;flex:none}
 
 .stage{height:100%;display:flex;align-items:center;justify-content:center;padding-block:20px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));
-  background:radial-gradient(120% 80% at 50% 0%, #141a22 0%, var(--ink) 60%)}
+  background:radial-gradient(120% 80% at 50% 0%, var(--stage) 0%, var(--ink) 60%)}
 .device{position:relative;width:390px;height:min(844px,100%);background:var(--ink);border-radius:46px;border:1px solid var(--line);overflow:hidden;box-shadow:0 40px 120px rgba(0,0,0,.6), inset 0 0 0 6px #050607}
 .statusbar{position:absolute;top:0;left:0;right:0;height:46px;display:flex;align-items:center;justify-content:space-between;padding:6px 32px 0;font-weight:700;font-size:14px;z-index:5}
 .statusbar .sb{display:flex;gap:6px;align-items:center}
@@ -49,12 +53,12 @@ i[data-lucide],svg.lucide{width:20px;height:20px;flex:none}
   .statusbar{display:none}
   .screen{top:env(safe-area-inset-top,0px);bottom:calc(64px + env(safe-area-inset-bottom,0px))}
   .tabbar{height:calc(64px + env(safe-area-inset-bottom,0px))}
-  .sheet{padding-bottom:calc(22px + env(safe-area-inset-bottom,0px))}
+  .sheet{padding-bottom:calc(22px + env(safe-area-inset-bottom,0px));--pb:calc(22px + env(safe-area-inset-bottom,0px))}
   .toast{top:calc(env(safe-area-inset-top,0px) + 10px)}
 }
 
 /* tab bar */
-.tabbar{position:absolute;left:0;right:0;bottom:0;height:82px;display:grid;grid-template-columns:repeat(5,1fr);align-items:start;padding-top:10px;padding-left:max(10px,env(safe-area-inset-left,0px));padding-right:max(10px,env(safe-area-inset-right,0px));background:linear-gradient(to top, var(--ink) 70%, rgba(10,12,15,0));border-top:1px solid var(--line);z-index:4}
+.tabbar{position:absolute;left:0;right:0;bottom:0;height:82px;display:grid;grid-template-columns:repeat(5,1fr);align-items:start;padding-top:10px;padding-left:max(10px,env(safe-area-inset-left,0px));padding-right:max(10px,env(safe-area-inset-right,0px));background:linear-gradient(to top, var(--ink) 70%, transparent);border-top:1px solid var(--line);z-index:4}
 .tab{height:46px;display:grid;place-items:center;color:var(--dim);transition:color .2s}
 .tab[aria-current="page"]{color:var(--ice)}
 .tab i,.tab svg{width:24px;height:24px}
@@ -256,7 +260,7 @@ button.row:active{background:var(--ink-3)}
 .btn:not(.ghost){box-shadow:0 10px 28px -8px var(--ice-glow)}
 .btn:not(.ghost)::after{content:"";position:absolute;inset:0;background:linear-gradient(110deg,transparent 30%,rgba(255,255,255,.5) 50%,transparent 70%);transform:translateX(-120%);animation:sheen 1.2s ease-in-out .5s 1;pointer-events:none}
 @keyframes sheen{60%,100%{transform:translateX(120%)}}
-.hero-num{background:linear-gradient(90deg,var(--ice) 0%,#E8F7FF 45%,var(--ice) 62%);background-size:250% 100%;-webkit-background-clip:text;background-clip:text;color:transparent;background-position:30% 0;filter:drop-shadow(0 0 18px rgba(92,200,255,.35))}
+.hero-num{background:linear-gradient(90deg,var(--ice) 0%,var(--hero-mid) 45%,var(--ice) 62%);background-size:250% 100%;-webkit-background-clip:text;background-clip:text;color:transparent;background-position:30% 0;filter:drop-shadow(0 0 18px rgba(92,200,255,.35))}
 @keyframes textsheen{from{background-position:100% 0}to{background-position:-150% 0}}
 .arc{transition:stroke .25s, stroke-width .4s cubic-bezier(.3,1.5,.5,1), opacity .3s}
 .donut.has-sel .arc:not(.sel){opacity:.28}
@@ -322,6 +326,24 @@ html,body{position:fixed;inset:0;overflow:hidden;overscroll-behavior:none}
 .rcfull{width:100%;border-radius:14px;display:block;background:var(--ink-3)}
 .hstin{display:flex;align-items:center;gap:6px;height:30px;padding:0 11px;border-radius:15px;background:var(--ink-3);flex:1;min-width:0}
 .hstin input{flex:1;min-width:0;background:none;border:0;outline:0;font-weight:700}.hstin input::placeholder{font-size:12.5px;font-weight:700;color:var(--dim)}
+.chip,.icon-btn,.mini-act,.seg button,.cat,.prov,.leg,.gcard,.bell,.key{transition:transform .12s ease,background .15s}
+.chip:active,.icon-btn:active,.mini-act:active,.seg button:active,.cat:active,.prov:active,.bell:active{transform:scale(.94)}
+.leg:active,.gcard:active{transform:scale(.98)}
+button.row:active{background:var(--ink-3)}
+.sheet{--pb:22px}
+.savebar{position:sticky;bottom:calc(-1 * var(--pb));z-index:3;margin:6px -18px calc(-1 * var(--pb));padding:12px 18px calc(var(--pb) - 6px);background:linear-gradient(to top,var(--ink-2) 80%,transparent)}
+.savebar.two{display:grid;grid-template-columns:1fr 2fr;gap:8px}
+.swipe{position:relative;overflow:hidden;border-top:1px solid var(--line)}
+.swipe:first-child{border-top:0}
+.swipe>.swrow{border-top:0;position:relative;z-index:1;background:var(--ink-2);transition:transform .25s cubic-bezier(.2,.8,.2,1)}
+.swipe.dragging>.swrow{transition:none}
+.swdel{position:absolute;top:0;right:0;bottom:0;width:76px;background:var(--danger);color:#fff;display:grid;place-items:center}
+.swdel svg{width:22px;height:22px}
+.toast.act{pointer-events:auto}
+.toast .undo{margin-left:4px;font-weight:800;text-decoration:underline;color:inherit}
+.people{display:flex;flex-wrap:wrap;gap:8px}
+.people .chip .av{width:20px;height:20px;font-size:10px;margin-left:-5px}
+@media (display-mode: standalone){html[data-theme="light"] .device::before{content:"";position:fixed;top:0;left:0;right:0;height:env(safe-area-inset-top,0px);background:#0C0F13;z-index:40}}
 @media (prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important}}
 </style>
 
@@ -390,7 +412,7 @@ const ICONS={
  'pencil':'<path d="M4 20l1-4L16 5l3 3L8 19z"/><path d="M14 7l3 3"/>',
  'store':'<path d="M4 10v10h16V10"/><path d="M3 10l2-6h14l2 6z"/><path d="M10 20v-5h4v5"/>',
  'calendar':'<rect x="3.5" y="5" width="17" height="15" rx="2"/><path d="M3.5 10h17M8 3v4M16 3v4"/>',
- 'delete':'<path d="M9 5h11v14H9l-6-7z"/><path d="m12 9 5 6M17 9l-5 6"/>',
+ 'delete':'<path d="M10 5h9a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2h-9a2 2 0 0 1-1.5-.7L3.6 12.6a1 1 0 0 1 0-1.2L8.5 5.7A2 2 0 0 1 10 5z"/><path d="m12.5 9.5 5 5M17.5 9.5l-5 5"/>',
  'calculator':'<rect x="5" y="3" width="14" height="18" rx="2"/><path d="M8 7h8M8 12h.01M12 12h.01M16 12h.01M8 16h.01M12 16h.01M16 16h.01"/>',
  'tag':'<path d="M3 12V3h9l9 9-9 9z"/><circle cx="7.5" cy="7.5" r="1.2"/>',
  'dollar-sign':'<path d="M12 3v18M16.5 7.5c-1-1.5-2.5-2-4.5-2-2.5 0-4 1.2-4 3s1.5 2.6 4 3.3 4.5 1.5 4.5 3.4-2 3.3-4.5 3.3c-2 0-3.8-.7-4.8-2.2"/>',
@@ -739,21 +761,21 @@ function donut(segs,{size=232,stroke=24,sub='',main='',foot='',hold=false}={}){
   const r=(size-stroke)/2-6,C=2*Math.PI*r,c=size/2,total=sum(segs,s=>s.v)||1,gap=segs.filter(s=>s.v>0).length>1?4:0;
   let off=0;
   const arcs=segs.map((s,i)=>{const full=s.v/total*C,len=Math.max(0,full-gap);
-    const a=`<circle class="arc${V.sel===s.k?' sel':''}" data-k="${s.k}" ${hold?'data-hold="1"':''} cx="${c}" cy="${c}" r="${r}" fill="none" stroke="${s.c}" stroke-width="${stroke}" style="stroke-dasharray:${len} ${C};stroke-dashoffset:${-off - gap/2};--c:${C}" data-len="${len}" data-c="${C}"><title>${esc(s.l)} ${fmt(s.v)}</title></circle>`;
+    const a=`<circle class="arc${V.sel===s.k?' sel':''}" data-k="${s.k}" ${hold?'data-hold="1"':''} cx="${c}" cy="${c}" r="${r}" fill="none" stroke-width="${stroke}" style="stroke:${s.c};stroke-dasharray:${len} ${C};stroke-dashoffset:${-off - gap/2};--c:${C}" data-len="${len}" data-c="${C}"><title>${esc(s.l)} ${fmt(s.v)}</title></circle>`;
     off+=full;return a}).join('');
   return `<div class="donut-wrap"><div class="donut${V.sel&&segs.some(s=>s.k===V.sel)?' has-sel':''}" style="width:${size}px;height:${size}px">
-    <svg viewBox="0 0 ${size} ${size}" width="${size}" height="${size}" aria-hidden="true"><circle cx="${c}" cy="${c}" r="${r}" fill="none" stroke="var(--ink-2)" stroke-width="${stroke}"/>${arcs}${hold?`<circle class="holdring" cx="${c}" cy="${c}" r="${r+stroke/2+8}" fill="none" stroke="var(--ice)" stroke-width="4" stroke-linecap="round" style="--hc:${2*Math.PI*(r+stroke/2+8)}"/>`:''}</svg>
+    <svg viewBox="0 0 ${size} ${size}" width="${size}" height="${size}" aria-hidden="true"><circle cx="${c}" cy="${c}" r="${r}" fill="none" stroke-width="${stroke}" style="stroke:var(--ink-2)"/>${arcs}${hold?`<circle class="holdring" cx="${c}" cy="${c}" r="${r+stroke/2+8}" fill="none" stroke="var(--ice)" stroke-width="4" stroke-linecap="round" style="--hc:${2*Math.PI*(r+stroke/2+8)}"/>`:''}</svg>
     <div class="donut-c"><div class="dc-sub">${sub}</div><div class="dc-main fit" id="dcMain">${main}</div><div class="dc-foot" id="dcFoot">${foot}</div></div></div></div>`;
 }
 function txnRow(t){
   const c=CATS[t.cat];
-  return `<button class="row${V.newId===t.id?' newrow':''}" data-act="txn" data-v="${t.id}"><span class="ic cc" style="--cc:${c.c}">${ico(c.i)}</span><span class="grow fit">${esc(t.m)}</span>${t.w?`<span class="wal" title="From Apple Wallet">${ico('wallet')}</span>`:''}<span class="w-date">${dayStr(t.date)}</span><span class="amt">${t.type==='in'?'+':''}${fmt2(t.amt)}</span></button>`;
+  return `<div class="swipe"><button class="swdel" data-act="swdel" data-k="txn" data-v="${t.id}" aria-label="Delete">${ico('trash')}</button><button class="row swrow${V.newId===t.id?' newrow':''}" data-act="txn" data-v="${t.id}"><span class="ic cc" style="--cc:${c.c}">${ico(c.i)}</span><span class="grow fit">${esc(t.m)}</span>${t.w?`<span class="wal" title="From Apple Wallet">${ico('wallet')}</span>`:''}<span class="w-date">${dayStr(t.date)}</span><span class="amt">${t.type==='in'?'+':''}${fmt2(t.amt)}</span></button></div>`;
 }
 
 /* ---------- spend & save (last 6 months) ---------- */
 const SS={spent:'#d95926',saved:'#3987e5'}; // validated pair on the dark surface
-function ssData(){const out=[];
-  for(let i=5;i>=0;i--){const d=new Date(TODAY.getFullYear(),TODAY.getMonth()-i,1),k=iso(d).slice(0,7);
+function ssData(){const out=[],N=V.ssN||6;
+  for(let i=N-1;i>=0;i--){const d=new Date(TODAY.getFullYear(),TODAY.getMonth()-i,1),k=iso(d).slice(0,7);
     const tx=S.txns.filter(t=>t.date&&t.date.slice(0,7)===k),inc=sum(tx.filter(t=>t.type==='in'),t=>t.amt),spent=sum(tx.filter(t=>t.type==='out'),t=>t.amt);
     out.push({k,m:d.getMonth(),now:i===0,inc,spent,saved:inc-spent,n:tx.length})}
   return out}
@@ -762,11 +784,11 @@ function ssRead(d){
   return `<span class="mute">${MON[d.m]}${d.now?' so far':''}</span><span><b>${fmt2(d.spent)}</b> <span class="mute">spent</span> · <b>${fmt2(Math.abs(d.saved))}</b> <span class="mute">${d.saved<0?'overspent':'saved'}</span></span>`}
 function ssChart(){
   if(S.hide)return `<button class="ss-off" data-act="eye" aria-label="Show amounts">${ico('eye-off')}Hidden · tap to show</button>`;
-  const D=ssData();if(V.ssSel==null||V.ssSel>5)V.ssSel=5;
+  const D=ssData(),N=D.length;if(V.ssSel==null||V.ssSel>N-1)V.ssSel=N-1;
   const W=340,H=150,L=36,R=4,T=10,B=22,pw=W-L-R,ph=H-T-B;
   const hi=Math.max(1,...D.map(d=>Math.max(d.spent,d.saved))),lo=Math.min(0,...D.map(d=>d.saved));
   const step=niceStep((hi-lo)/3),top=Math.ceil(hi/step)*step,bot=Math.floor(lo/step)*step;
-  const y=v=>T+(top-v)/(top-bot)*ph,y0=y(0),slot=pw/6,bw=Math.min(16,(slot-14)/2);
+  const y=v=>T+(top-v)/(top-bot)*ph,y0=y(0),slot=pw/N,bw=Math.max(4,Math.min(16,(slot-8)/2));
   const bar=(x,v,c)=>{if(Math.abs(y(v)-y0)<.5)return '';const y1=y(v),h=Math.abs(y1-y0),r=Math.min(4,h,bw/2),sg=y1<y0?1:-1;
     return `<path d="M${x} ${y0}V${y1+sg*r}Q${x} ${y1} ${x+r} ${y1}H${x+bw-r}Q${x+bw} ${y1} ${x+bw} ${y1+sg*r}V${y0}Z" fill="${c}"/>`};
   const ticks=[];for(let v=bot;v<=top+1e-6;v+=step)ticks.push(v);
@@ -777,7 +799,7 @@ function ssChart(){
       <rect data-act="ssm" data-v="${i}" data-ss="${i}" x="${L+slot*i}" y="0" width="${slot}" height="${H}" fill="transparent" style="cursor:pointer"><title>${MON[d.m]}: ${fmt(d.spent)} spent, ${fmt(d.saved)} ${d.saved<0?'overspent':'saved'}</title></rect>`});
   return `<div class="ss-read" id="ssRead">${ssRead(D[V.ssSel])}</div>
   <div class="ss-leg"><span class="lg"><span class="sw" style="background:${SS.spent}"></span>Spent</span><span class="lg"><span class="sw" style="background:${SS.saved}"></span>Saved</span></div>
-  <svg class="sssvg" viewBox="0 0 ${W} ${H}" role="img" aria-label="Spent and saved, last 6 months">${g}</svg>
+  <svg class="sssvg" viewBox="0 0 ${W} ${H}" role="img" aria-label="Spent and saved, last ${N} months">${g}</svg>
   <table class="sr"><caption>Spent and saved by month</caption><tr><th>Month</th><th>Spent</th><th>Saved</th></tr>${D.map(d=>`<tr><td>${MON[d.m]}</td><td>${fmt(d.spent)}</td><td>${fmt(d.saved)}</td></tr>`).join('')}</table>`;
 }
 function ssPick(i){if(i===V.ssSel)return;V.ssSel=i;const D=ssData(),r=$('#ssRead');if(r)r.innerHTML=ssRead(D[i]);
@@ -811,14 +833,14 @@ function vHome(){
     const recent=[...tx].sort(byNewest).slice(0,7);
     return `
     <div class="top"><h1 class="grow">${MONTH_FULL[TODAY.getMonth()]}</h1>${eyeBtn()}<button class="icon-btn" data-act="settings" aria-label="Settings and backup">${ico('settings')}</button></div>
-    ${donut([{k:'out',v:out,c:RAMP[0],l:'Expense'},{k:'in',v:inc,c:'#5CC8FF',l:'Income'}],{hold:true,
+    ${donut([{k:'out',v:out,c:'var(--paper)',l:'Expense'},{k:'in',v:inc,c:'var(--ice)',l:'Income'}],{hold:true,
       sub:selV===null?'Net':(V.sel==='in'?'Income':'Expense'),main:selV===null?(S.hide?'':net>=0?'+':'')+fmt2(net):fmt2(selV),foot:selV===null?`${fmt2(inc)} in`:pct(selV/(inc+out||1),0)+' of flow'})}
     <div class="hint">${ico('pointer')}Hold a slice to open</div>
     <div class="legend">
-      <button class="leg${V.sel==='out'?' sel':''}" data-act="open" data-v="out"><span class="lt"><span class="sw" style="background:${RAMP[0]}"></span>Expense${ico('chevron-right')}</span><span class="lv fit">${fmt2(out)}</span></button>
-      <button class="leg${V.sel==='in'?' sel':''}" data-act="open" data-v="in"><span class="lt"><span class="sw" style="background:#5CC8FF"></span>Income${ico('chevron-right')}</span><span class="lv fit">${fmt2(inc)}</span></button>
+      <button class="leg${V.sel==='out'?' sel':''}" data-act="open" data-v="out"><span class="lt"><span class="sw" style="background:var(--paper)"></span>Expense${ico('chevron-right')}</span><span class="lv fit">${fmt2(out)}</span></button>
+      <button class="leg${V.sel==='in'?' sel':''}" data-act="open" data-v="in"><span class="lt"><span class="sw" style="background:var(--ice)"></span>Income${ico('chevron-right')}</span><span class="lv fit">${fmt2(inc)}</span></button>
     </div>
-    <div class="sec"><div class="sec-h"><span class="label">Spend &amp; save</span><span class="chip">6 months</span></div>
+    <div class="sec"><div class="sec-h"><span class="label">Spend &amp; save</span><div class="chips">${[3,6,12].map(n=>`<button class="chip${(V.ssN||6)===n?' on':''}" data-act="ssn" data-v="${n}">${n===12?'1Y':n+'M'}</button>`).join('')}</div></div>
       <div class="list" style="padding:14px 12px 8px">${ssChart()}</div></div>
     ${invSection()}
     <div class="sec"><div class="sec-h"><span class="label">Upcoming</span><button class="chip" data-act="tab" data-v="bills">All${ico('chevron-right')}</button></div>
@@ -863,10 +885,10 @@ function vBills(){
   <div class="top"><h1>Reminders</h1>${eyeBtn()}<button class="icon-btn" data-act="addrem" aria-label="Add reminder">${ico('plus')}</button></div>
   <div class="list"><div class="kv"><span class="mute">Due in 30 days</span><span class="v">${fmt2(due30)}</span></div><div class="kv"><span class="mute">Next payday</span><span class="v">${(()=>{const p=up.find(u=>u.type==='in');return p?`${MON[p.date.getMonth()]} ${p.date.getDate()} · +${fmt2(p.amt)}`:'None'})()}</span></div></div>
   <div class="sec"><span class="label">Pay off</span><div class="list">
-    ${S.rem.map(r=>{const u=up.find(x=>x.r===r);return `<div class="row"><span class="ic${u.days<=7?' ice':''}">${ico(remIcon(r.kind))}</span><button class="grow fit" style="text-align:left" data-act="remopen" data-v="${r.id}">${esc(r.n)}</button><span class="days${u.days<=7?' soon':''}">${u.days===0?'Today':u.days+'d'}</span><span class="amt">${fmt2(r.amt)}</span><button class="bell" data-act="remtog" data-v="${r.id}" aria-pressed="${r.on}" aria-label="Remind ${esc(r.n)} ${r.lead} days before">${ico(r.on?'bell-ring':'bell-off')}</button></div>`}).join('')||empty('No bills yet. Tap + to add one','credit-card')}
+    ${S.rem.map(r=>{const u=up.find(x=>x.r===r);return `<div class="swipe"><button class="swdel" data-act="swdel" data-k="rem" data-v="${r.id}" aria-label="Delete">${ico('trash')}</button><div class="row swrow"><span class="ic${u.days<=7?' ice':''}">${ico(remIcon(r.kind))}</span><button class="grow fit" style="text-align:left" data-act="remopen" data-v="${r.id}">${esc(r.n)}</button><span class="days${u.days<=7?' soon':''}">${u.days===0?'Today':u.days+'d'}</span><span class="amt">${fmt2(r.amt)}</span><button class="bell" data-act="remtog" data-v="${r.id}" aria-pressed="${r.on}" aria-label="Remind ${esc(r.n)} ${r.lead} days before">${ico(r.on?'bell-ring':'bell-off')}</button></div></div>`}).join('')||empty('No bills yet. Tap + to add one','credit-card')}
   </div></div>
   <div class="sec"><div class="sec-h"><span class="label">Scheduled</span><button class="chip" data-act="add">${ico('plus')}New</button></div><div class="list">
-    ${S.sched.map(s=>{const d=new Date(s.next+'T00:00:00');return `<button class="row" data-act="schedopen" data-v="${s.id}"><span class="ic cc" style="--cc:${CATS[s.cat].c}">${ico(CATS[s.cat].i)}</span><span class="grow fit">${esc(s.m)}</span>${s.repeat!=='Once'?`<span class="wal" style="color:var(--mute)" title="${s.repeat}">${ico('repeat')}</span>`:''}<span class="w-date">${MON[d.getMonth()]} ${d.getDate()}</span><span class="amt">${s.type==='in'?'+':''}${fmt2(s.amt)}</span></button>`}).join('')||empty('Nothing scheduled','calendar')}
+    ${S.sched.map(s=>{const d=new Date(s.next+'T00:00:00');return `<div class="swipe"><button class="swdel" data-act="swdel" data-k="sched" data-v="${s.id}" aria-label="Delete">${ico('trash')}</button><button class="row swrow" data-act="schedopen" data-v="${s.id}"><span class="ic cc" style="--cc:${CATS[s.cat].c}">${ico(CATS[s.cat].i)}</span><span class="grow fit">${esc(s.m)}</span>${s.repeat!=='Once'?`<span class="wal" style="color:var(--mute)" title="${s.repeat}">${ico('repeat')}</span>`:''}<span class="w-date">${MON[d.getMonth()]} ${d.getDate()}</span><span class="amt">${s.type==='in'?'+':''}${fmt2(s.amt)}</span></button></div>`}).join('')||empty('Nothing scheduled','calendar')}
   </div></div>
   <div class="hint" style="margin-top:14px">${ico('bell-ring')}Bell on = flagged here before the due day</div>`;
 }
@@ -895,17 +917,18 @@ function vSplit(){
   const outstanding=sum(st,s=>s.amt), per=tot/g.members.length;
   return `
   <div class="top"><button class="icon-btn" data-act="back" aria-label="Back">${ico('chevron-left')}</button><h1 class="fit">${esc(g.n)}</h1><button class="icon-btn" data-act="addexp" aria-label="Add shared cost">${ico('plus')}</button></div>
-  ${donut([{k:'set',v:tot-outstanding,c:RAMP[0],l:'Settled'},{k:'open',v:outstanding,c:'#5CC8FF',l:'Outstanding'}],{size:200,stroke:20,sub:`${g.members.length} people`,main:fmt2(tot),foot:`${fmt2(per)} each`})}
-  <div class="legend"><div class="leg"><span class="lt"><span class="sw" style="background:${RAMP[0]}"></span>Settled</span><span class="lv fit">${fmt2(tot-outstanding)}</span></div><div class="leg"><span class="lt"><span class="sw" style="background:#5CC8FF"></span>Outstanding</span><span class="lv fit">${fmt2(outstanding)}</span></div></div>
+  ${donut([{k:'set',v:tot-outstanding,c:'var(--paper)',l:'Settled'},{k:'open',v:outstanding,c:'var(--ice)',l:'Outstanding'}],{size:200,stroke:20,sub:`${g.members.length} people`,main:fmt2(tot),foot:`${fmt2(per)} each`})}
+  <div class="legend"><div class="leg"><span class="lt"><span class="sw" style="background:var(--paper)"></span>Settled</span><span class="lv fit">${fmt2(tot-outstanding)}</span></div><div class="leg"><span class="lt"><span class="sw" style="background:var(--ice)"></span>Outstanding</span><span class="lv fit">${fmt2(outstanding)}</span></div></div>
   <div class="sec"><span class="label">Who owes</span><div class="list">
     ${st.length?st.map(s=>{const k=g.id+s.from+s.to,n=V.nudged[k];return `<div class="row"><span class="flow">${av(s.from)}<span class="grow fit" style="margin-left:2px">${PEOPLE[s.from]} → ${PEOPLE[s.to]}</span></span><span class="amt">${fmt2(s.amt)}</span>
       ${s.to==='you'?`<button class="mini-act${n?' done':' ice'}" data-act="nudge" data-g="${g.id}" data-f="${s.from}" data-t="${s.to}" data-a="${s.amt}" aria-label="Nudge ${PEOPLE[s.from]}">${ico(n?'check':'bell-ring')}</button>`:''}
       <button class="mini-act" data-act="paid" data-g="${g.id}" data-f="${s.from}" data-t="${s.to}" data-a="${s.amt}" aria-label="Mark paid">${ico('circle-check')}</button></div>`}).join(''):`<div class="row"><span class="ic ice">${ico('check')}</span><span class="grow">All settled</span></div>`}
   </div></div>
+  <div class="sec"><span class="label">People</span><div class="people">${g.members.map(m=>`<button class="chip" data-act="person" data-v="${m}">${av(m)}${esc(PEOPLE[m])}</button>`).join('')}<button class="chip ice" data-act="person" data-v="new">${ico('plus')}Add person</button></div></div>
   <div class="sec"><span class="label">Costs</span><div class="list">
-    ${g.exp.length?'':empty('Tap + to add a shared cost','receipt')}${g.exp.map(e=>`<div class="row"><span class="ic">${ico(e.i)}</span><span class="grow fit">${esc(e.l)}</span><span class="mute small num">${PEOPLE[e.payer]} ÷${e.among.length}</span><span class="amt">${fmt2(e.amt)}</span></div>`).join('')}
+    ${g.exp.length?'':empty('Tap + to add a shared cost','receipt')}${g.exp.map((e,i)=>`<div class="swipe"><button class="swdel" data-act="swdel" data-k="exp" data-v="${i}" aria-label="Delete">${ico('trash')}</button><button class="row swrow" data-act="expedit" data-v="${i}"><span class="ic">${ico(e.i)}</span><span class="grow fit">${esc(e.l)}</span><span class="mute small num">${PEOPLE[e.payer]} ÷${e.among.length}</span><span class="amt">${fmt2(e.amt)}</span></button></div>`).join('')}
   </div></div>
-  ${g.pay.length?`<div class="sec"><span class="label">Paid back</span><div class="list">${g.pay.map(p=>`<div class="row">${av(p.from)}<span class="grow fit">${PEOPLE[p.from]} paid ${PEOPLE[p.to]}</span><span class="amt">${fmt2(p.amt)}</span></div>`).join('')}</div></div>`:''}
+  ${g.pay.length?`<div class="sec"><span class="label">Paid back</span><div class="list">${g.pay.map((p,i)=>`<div class="swipe"><button class="swdel" data-act="swdel" data-k="pay" data-v="${i}" aria-label="Undo payment">${ico('rotate-ccw')}</button><button class="row swrow" data-act="payundo" data-v="${i}">${av(p.from)}<span class="grow fit">${PEOPLE[p.from]} paid ${PEOPLE[p.to]}</span><span class="amt">${fmt2(p.amt)}</span>${ico('rotate-ccw')}</button></div>`).join('')}</div><div class="mute small" style="margin-top:8px;white-space:normal">Marked by mistake? Tap a payment to undo it.</div></div>`:''}
   <div class="sec"><button class="btn ghost" data-act="delgrp" data-v="${g.id}">${ico('trash')}Delete group</button></div>`;
 }
 
@@ -1117,7 +1140,7 @@ function fitAll(root){
     while(el.scrollWidth>el.clientWidth&&fs>9&&n<40){fs-=.5;el.style.fontSize=fs+'px';n++}});
 }
 let toastT;
-function toast(msg,icon='check'){const t=$('#toast');t.innerHTML=ico(icon)+`<span class="fit">${esc(msg)}</span>`;try{lucide.createIcons()}catch(e){}
+function toast(msg,icon='check'){const t=$('#toast');t.classList.remove('act');t.innerHTML=ico(icon)+`<span class="fit">${esc(msg)}</span>`;try{lucide.createIcons()}catch(e){}
   t.classList.add('show');clearTimeout(toastT);toastT=setTimeout(()=>t.classList.remove('show'),2200)}
 
 /* ---------- sheets ---------- */
@@ -1135,7 +1158,7 @@ function drawAdd(){
   openSheet(`
   <div class="top" style="height:40px"><div class="seg" style="flex:1"><button data-act="atype" data-v="out" aria-pressed="${A.type==='out'}">Expense</button><button data-act="atype" data-v="in" aria-pressed="${A.type==='in'}">Income</button></div><button class="icon-btn" data-act="close" aria-label="Close">${ico('x')}</button></div>
   <div class="amount-big" id="aAmt">${amtHTML()}</div>
-  <div class="rcrow" style="margin-bottom:10px">${(A.rc||[]).map(r=>`<span class="rcth"><img data-rc="${r.id}" ${RCURL[r.id]?`src="${RCURL[r.id]}"`:''} alt="Receipt"><button class="x" data-act="rcrm" data-v="${r.id}" aria-label="Remove receipt">${ico('x')}</button></span>`).join('')}
+  <div class="rcrow" style="margin-bottom:10px">${(A.rc||[]).map(r=>`<span class="rcth"><img data-rc="${r.id}" ${RCURL[r.id]?`src="${RCURL[r.id]}"`:''} alt="Receipt" ${A.edit&&A.edit.kind==='txn'&&!r.isNew?`data-act="rcview" data-v="${r.id}" data-x="${esc(String(A.edit.id))}"`:''}><button class="x" data-act="rcrm" data-v="${r.id}" aria-label="Remove receipt">${ico('x')}</button></span>`).join('')}
     <label class="chip${A.ocr?' ice':''}">${ico('camera')}<span id="ocrMsg">${A.ocr?esc(A.ocr):(A.rc&&A.rc.length?'Add another':'Scan receipt')}</span><input type="file" id="rcFile" accept="image/*" hidden></label></div>
   <div style="display:flex;flex-direction:column;gap:10px">
     <div class="field">${ico('store')}<input id="aName" placeholder="${A.type==='out'?'Where? e.g. Loblaws':'From? e.g. Payroll'}" value="${esc(A.m)}" maxlength="22" autocomplete="off"></div>
@@ -1149,7 +1172,7 @@ function drawAdd(){
      :`<div class="opt"><span class="lbl">${ico('tag')}Slip</span><div class="chips">${Object.entries(BINC).map(([k,x])=>`<button class="chip${A.slip===k?' on':''}" data-act="aset" data-k="slip" data-v="${k}">${x.s}</button>`).join('')}</div></div>`):''}`:''}
     ${A.edit&&A.edit.kind==='txn'?'':`<div class="opt"><span class="lbl">${ico('repeat')}Repeat</span><div class="chips">${chipset('repeat',['Once','Weekly','2 Wks','2×/Mo','Monthly'])}</div></div>`}
     <div class="keypad">${['1','2','3','4','5','6','7','8','9','.','0','del'].map(k=>`<button class="key" data-act="key" data-v="${k}" aria-label="${k==='del'?'Delete':k}">${k==='del'?ico('delete'):k}</button>`).join('')}</div>
-    <button class="btn" data-act="asave">${ico('check')}${A.edit?'Save changes':'Save '+CATS[A.cat].n}</button>
+    <div class="savebar${A.edit?' two':''}">${A.edit?`<button class="btn ghost" data-act="delitem" data-k="${A.edit.kind}" data-v="${esc(String(A.edit.id))}" aria-label="Delete">${ico('trash')}</button>`:''}<button class="btn" data-act="asave">${ico('check')}${A.edit?'Save changes':'Save '+CATS[A.cat].n}</button></div>
   </div>`,'add');
   loadThumbs($('#sheet'));
 }
@@ -1288,7 +1311,7 @@ function openBizEdit(id,from){const b=id?bizOf(id):null;BZ={id:b?b.id:null,from:
   <div class="field">${ico('briefcase')}<input id="bzName" placeholder="Name, e.g. Kai Design Studio" maxlength="28" value="${esc(b?b.n:'')}"></div>
   <div class="field">${ico('tag')}<input id="bzBn" inputmode="numeric" placeholder="CRA business number (optional)" maxlength="15" value="${esc(b&&b.bn||'')}"></div>
   <div class="mute small" style="white-space:normal">Each business gets its own T2125 on your return. The business number (BN) is on your CRA letters. Leave it empty if you don't have one.</div>
-  <button class="btn" data-act="bzsave">${ico('check')}${b?'Save changes':'Add business'}</button></div>`,'bizedit')}
+  <div class="savebar"><button class="btn" data-act="bzsave">${ico('check')}${b?'Save changes':'Add business'}</button></div></div>`,'bizedit')}
 function saveBiz(){const n=$('#bzName').value.trim(),bn=$('#bzBn').value.replace(/[^0-9A-Za-z]/g,'').toUpperCase();if(!n){toast('Give it a name','info');return}
   if(BZ.id)Object.assign(bizOf(BZ.id),{n,bn});
   else{const used=S.biz.list.map(b=>b.c),c=ACCT_COLORS.find(x=>!used.includes(x))||'#717B87',id='bz'+uid();S.biz.list.push({id,n,bn,c});BZ.id=id;if(BZ.from==='biz')V.bizSel=id}
@@ -1430,7 +1453,8 @@ async function makePdf(kind){
 /* settings + backup */
 function openSettings(){
   openSheet(`<div class="top" style="height:40px"><span class="ic ice">${ico('settings')}</span><h2>Settings</h2><button class="icon-btn" data-act="close" aria-label="Close">${ico('x')}</button></div>
-  <span class="label">Cloud sync</span>
+  <span class="label">Appearance</span><div class="seg" style="margin-top:8px">${[['system','System'],['light','Light'],['dark','Dark']].map(([k,l])=>`<button data-act="theme" data-v="${k}" aria-pressed="${themePref()===k}">${l}</button>`).join('')}</div>
+  <div class="sec"><span class="label">Cloud sync</span>
   ${AUTH?`<div class="list" style="background:var(--ink-3);margin-top:8px">
       <div class="kv"><span class="mute">Signed in</span><span class="v fit" style="max-width:62%">${esc(AUTH.email||'')}</span></div>
       <div class="kv"><span class="mute">Status</span><span class="v fit" style="max-width:70%">${esc(syncText())}</span></div>
@@ -1441,7 +1465,7 @@ function openSettings(){
       ${V.sbSent?`<div class="field">${ico('key-round')}<input id="sbCode" inputmode="numeric" autocomplete="one-time-code" maxlength="10" placeholder="Code from the email"></div>
         <div style="display:grid;grid-template-columns:1fr 2fr;gap:8px"><button class="btn ghost" data-act="sbback">Back</button><button class="btn" data-act="sbverify">${ico('check')}Sign in</button></div>`
        :`<button class="btn" data-act="sbsend">${ico('arrow-right')}Email me a code</button>`}
-      <div class="mute small" style="white-space:normal">Saves your data to Glacio's cloud so a new phone or the App Store version gets it back. Only you can read it.</div></div>`}
+      <div class="mute small" style="white-space:normal">Saves your data to Glacio's cloud so a new phone or the App Store version gets it back. Only you can read it.</div></div>`}</div>
   <div class="sec"><span class="label">Self-employed</span><div class="list" style="background:var(--ink-3);margin-top:8px"><div class="mfield"><label>I get a T4A or run a business</label><button class="switch" role="switch" data-act="bizon" aria-checked="${!!S.biz.on}" aria-label="Self-employed records"></button></div></div>
     ${S.biz.on?`<div class="list" style="background:var(--ink-3);margin-top:8px">${S.biz.list.map(b=>`<div class="row"><span class="ic cc" style="--cc:${b.c}">${ico('briefcase')}</span><button class="grow fit" style="text-align:left" data-act="bzedit" data-v="${b.id}">${esc(b.n)}</button>${b.bn?`<span class="mute small">BN ${esc(b.bn.slice(0,9))}</span>`:''}<button class="mini-act" data-act="bzedit" data-v="${b.id}" aria-label="Edit ${esc(b.n)}">${ico('pencil')}</button><button class="mini-act" data-act="bzdel" data-v="${b.id}" aria-label="Remove ${esc(b.n)}">${ico('trash')}</button></div>`).join('')}
       <button class="row" data-act="biznew" data-v="settings"><span class="ic ice">${ico('plus')}</span><span class="grow">Add business</span>${ico('chevron-right')}</button></div>`:''}
@@ -1513,7 +1537,7 @@ function drawAcctNew(){const nm=$('#acName')?.value??AC.n??'';
   <div style="display:flex;flex-direction:column;gap:10px">
   <div class="seg">${Object.entries(ACCT_KIND).map(([k,x])=>`<button data-act="ackind" data-v="${k}" aria-pressed="${AC.kind===k}">${x.k}</button>`).join('')}</div>
   <div class="field">${ico('tag')}<input id="acName" placeholder="${{credit:'e.g. TD Visa',debit:'e.g. RBC Chequing',cash:'e.g. Cash'}[AC.kind]}" maxlength="18" value="${esc(nm)}"></div>
-  <button class="btn" data-act="acsave">${ico('check')}${AC.editId?'Save changes':'Add account'}</button></div>`,'acct')}
+  <div class="savebar"><button class="btn" data-act="acsave">${ico('check')}${AC.editId?'Save changes':'Add account'}</button></div></div>`,'acct')}
 function saveAcct(){const n=$('#acName').value.trim();if(!n){toast('Give it a name','info');return}
   if(AC.editId){const a=S.accts.find(x=>x.id===AC.editId);if(a)Object.assign(a,{n,kind:AC.kind});save();openSettings();render(false);toast('Account updated','wallet');return}
   const used=S.accts.map(a=>a.c),c=ACCT_COLORS.find(x=>!used.includes(x))||'#717B87',id='a'+uid();
@@ -1539,7 +1563,7 @@ function drawInvNew(){const nm=$('#ivName')?.value||'',v=$('#ivVal')?.value||'',
   <div class="field">${ico('trending-up')}<input id="ivVal" inputmode="decimal" placeholder="What it's worth today" value="${esc(v)}"></div>
   <div class="field">${ico('piggy-bank')}<input id="ivPut" inputmode="decimal" placeholder="Total you've put in so far" value="${esc(p)}"></div>
   <div class="mute small" style="white-space:normal">Gain = what it's worth minus what you put in. Not sure what you put in? Leave it empty.</div>
-  <button class="btn" data-act="ivsave">${ico('check')}Add account</button></div>`,'invnew')}
+  <div class="savebar"><button class="btn" data-act="ivsave">${ico('check')}Add account</button></div></div>`,'invnew')}
 function saveInvNew(){
   const n=$('#ivName').value.trim()||INVK[IV.kind].n,val=parseMoney($('#ivVal').value),pr=$('#ivPut').value.trim(),put=pr?parseMoney(pr):val;
   S.inv.push({id:'i'+uid(),n,kind:IV.kind,moves:put?[{id:'m'+uid(),date:TODAY_ISO,amt:put,open:true}]:[],vals:[{date:TODAY_ISO,v:val}]});
@@ -1550,7 +1574,7 @@ function openInv(id,mode){
     .sort((x,y)=>y.d.localeCompare(x.d)).slice(0,8);
   const ph={in:'Amount you put in',out:'Amount you took out',val:"What it's worth today"}[mode];
   const form=mode?`<div class="field" style="margin-top:12px">${ico(mode==='val'?'trending-up':'dollar-sign')}<input id="ivAmt" inputmode="decimal" placeholder="${ph}"></div>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px"><button class="btn ghost" data-act="inv" data-v="${a.id}">Cancel</button><button class="btn" data-act="ivdo" data-k="${mode}" data-v="${a.id}">${ico('check')}Save</button></div>`
+    <div class="savebar two"><button class="btn ghost" data-act="inv" data-v="${a.id}">Cancel</button><button class="btn" data-act="ivdo" data-k="${mode}" data-v="${a.id}">${ico('check')}Save</button></div>`
    :`<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:12px">
     <button class="btn" style="font-size:14px" data-act="ivmode" data-k="in" data-v="${a.id}">${ico('plus')}Put in</button>
     <button class="btn ghost" style="font-size:14px" data-act="ivmode" data-k="out" data-v="${a.id}">Take out</button>
@@ -1582,7 +1606,7 @@ function openNewGrp(){
   <div class="field">${ico('tag')}<input id="gName" placeholder="Name, e.g. Roommates" maxlength="22"></div>
   <div class="field">${ico('users')}<input id="gPeople" placeholder="Who else? e.g. Kai, Mia" maxlength="120"></div>
   <div class="list" style="background:var(--ink-3)"><div class="mfield"><label>Repeats monthly</label><button class="switch" role="switch" data-act="grprep" aria-checked="false" aria-label="Repeats monthly"></button></div></div>
-  <button class="btn" data-act="gsave">${ico('check')}Create group</button></div>`,'grp');
+  <div class="savebar"><button class="btn" data-act="gsave">${ico('check')}Create group</button></div></div>`,'grp');
 }
 function saveGrp(){
   const n=$('#gName').value.trim(),names=$('#gPeople').value.split(/[,，、]/).map(x=>x.trim()).filter(Boolean).slice(0,12);
@@ -1623,41 +1647,93 @@ function drawRem(){
   <div class="field">${ico('dollar-sign')}<input id="rAmt" inputmode="decimal" placeholder="Amount" value="${R.amt!=null?R.amt:''}"></div>
   <div class="field">${ico('calendar')}<input id="rDay" inputmode="numeric" placeholder="Due day of month, 1–31" maxlength="2" value="${R.day||''}"></div>
   <div class="opt"><span class="lbl">${ico('bell')}Alert</span><div class="chips">${[1,3,7].map(d=>`<button class="chip${R.lead===d?' on':''}" data-act="rlead" data-v="${d}">${d} day${d>1?'s':''} before</button>`).join('')}</div></div>
-  <button class="btn" data-act="rsave">${ico('bell-ring')}Save reminder</button></div>`,'rem');
+  <div class="savebar${R.editId?' two':''}">${R.editId?`<button class="btn ghost" data-act="delitem" data-k="rem" data-v="${R.editId}" aria-label="Delete">${ico('trash')}</button>`:''}<button class="btn" data-act="rsave">${ico('bell-ring')}${R.editId?'Save changes':'Save reminder'}</button></div></div>`,'rem');
 }
-function openAddExp(){
+function openAddExp(idx){
   const g=S.groups.find(x=>x.id===V.grp);
-  E={payer:'you',among:[...g.members]};drawExp();
+  if(idx!=null&&g.exp[idx]){const e=g.exp[idx];E={idx,payer:e.payer,among:[...e.among],l:e.l,amt:e.amt}}
+  else E={payer:'you',among:[...g.members]};
+  drawExp();
 }
+function openPerson(m){const g=S.groups.find(x=>x.id===V.grp),isNew=m==='new';
+  const used=!isNew&&(g.exp.some(e=>e.payer===m||e.among.includes(m))||g.pay.some(p=>p.from===m||p.to===m));
+  openSheet(`<div class="top" style="height:40px"><h2>${isNew?'Add people':'Edit person'}</h2><button class="icon-btn" data-act="close" aria-label="Close">${ico('x')}</button></div>
+  <div style="display:flex;flex-direction:column;gap:10px">
+  ${m==='you'?`<div class="mute small">This is you.</div>`:`<div class="field">${ico('users')}<input id="pName" placeholder="${isNew?'Names, e.g. Kai, Mia':'Name'}" maxlength="${isNew?120:22}" value="${isNew?'':esc(PEOPLE[m])}"></div>`}
+  ${isNew?`<div class="mute small" style="white-space:normal">New people join future costs. Older costs stay split as they were.</div>`:''}
+  ${!isNew&&m!=='you'?(used?`<div class="mute small" style="white-space:normal">${esc(PEOPLE[m])} is in a cost or payment, so they stay in the group. Delete those first to remove them.</div>`:`<button class="btn ghost" data-act="prm" data-v="${m}">${ico('trash')}Remove from group</button>`):''}
+  ${m==='you'?'':`<div class="savebar"><button class="btn" data-act="psave" data-v="${m}">${ico('check')}${isNew?'Add':'Save'}</button></div>`}</div>`,'person')}
+function openGrpPick(){
+  openSheet(`<div class="top" style="height:40px"><h2>Add a shared cost</h2><button class="icon-btn" data-act="close" aria-label="Close">${ico('x')}</button></div>
+  <div class="list" style="background:var(--ink-3)">${S.groups.map(g=>`<button class="row" data-act="grpadd" data-v="${g.id}"><span class="ic ice">${ico(g.i)}</span><span class="grow fit">${esc(g.n)}</span><span class="mute small">${g.members.length} people</span>${ico('chevron-right')}</button>`).join('')}
+  <button class="row" data-act="newgrp"><span class="ic">${ico('plus')}</span><span class="grow">New group</span>${ico('chevron-right')}</button></div>`,'grppick')}
 let E;
 function drawExp(){
   const g=S.groups.find(x=>x.id===V.grp);
-  const nm=$('#eName')?.value||'', am=$('#eAmt')?.value||'';
-  openSheet(`<div class="top" style="height:40px"><h2>Shared cost</h2><button class="icon-btn" data-act="close" aria-label="Close">${ico('x')}</button></div>
+  const nm=sheetCtx==='exp'?($('#eName')?.value||''):(E.l||''), am=sheetCtx==='exp'?($('#eAmt')?.value||''):(E.amt!=null?String(E.amt):'');
+  openSheet(`<div class="top" style="height:40px"><h2>${E.idx!=null?'Edit shared cost':'Shared cost'}</h2><button class="icon-btn" data-act="close" aria-label="Close">${ico('x')}</button></div>
   <div style="display:flex;flex-direction:column;gap:10px">
   <div class="field">${ico('tag')}<input id="eName" placeholder="What, e.g. Hydro" maxlength="20" value="${esc(nm)}"></div>
   <div class="field">${ico('dollar-sign')}<input id="eAmt" inputmode="decimal" placeholder="Total" value="${esc(am)}"></div>
   <div class="opt"><span class="lbl">${ico('hand-coins')}Paid</span><div class="chips">${g.members.map(m=>`<button class="chip${E.payer===m?' on':''}" data-act="epay" data-v="${m}">${PEOPLE[m]}</button>`).join('')}</div></div>
   <div class="opt"><span class="lbl">${ico('split')}Split</span><div class="chips">${g.members.map(m=>`<button class="chip${E.among.includes(m)?' on':''}" data-act="eamong" data-v="${m}">${PEOPLE[m]}</button>`).join('')}</div></div>
   <div class="mute small num" id="eEach">Split evenly between ${E.among.length}</div>
-  <button class="btn" data-act="esave">${ico('check')}Add cost</button></div>`,'exp');
+  <div class="savebar${E.idx!=null?' two':''}">${E.idx!=null?`<button class="btn ghost" data-act="expdel" aria-label="Delete">${ico('trash')}</button>`:''}<button class="btn" data-act="esave">${ico('check')}${E.idx!=null?'Save changes':'Add cost'}</button></div></div>`,'exp');
 }
+
+/* ---------- delete with undo (5 s) ---------- */
+let UNDO=null;
+function deleteWithUndo(kind,id){
+  if(UNDO){clearTimeout(UNDO.t);UNDO.done();UNDO=null}
+  const snap=JSON.stringify(S),g=S.groups.find(x=>x.id===V.grp);let rcLater=[],msg='Deleted';
+  if(kind==='txn'){const t=S.txns.find(x=>String(x.id)===String(id));rcLater=(t&&t.rc)||[];S.txns=S.txns.filter(x=>x!==t)}
+  else if(kind==='sched')S.sched=S.sched.filter(x=>x.id!==id);
+  else if(kind==='rem')S.rem=S.rem.filter(x=>x.id!==id);
+  else if(kind==='exp'&&g)g.exp.splice(+id,1);
+  else if(kind==='pay'&&g){g.pay.splice(+id,1);msg='Payment undone'}
+  save();render(false);
+  UNDO={snap,done:()=>rcLater.forEach(rcDelete),t:setTimeout(()=>{if(UNDO){UNDO.done();UNDO=null}},5000)};
+  const el=$('#toast');el.innerHTML=ico(kind==='pay'?'rotate-ccw':'trash')+`<span class="fit">${msg}</span><button class="undo" data-act="undo">Undo</button>`;
+  el.classList.add('show','act');clearTimeout(toastT);toastT=setTimeout(()=>el.classList.remove('show','act'),5000)}
+function undoDelete(){if(!UNDO)return;clearTimeout(UNDO.t);S=JSON.parse(UNDO.snap);bindState();UNDO=null;save();render(false);toast('Restored','rotate-ccw')}
+
+/* ---------- theme ---------- */
+const themePref=()=>{try{return localStorage.getItem('glacio-theme')||'dark'}catch(e){return 'dark'}};
+function applyTheme(p){try{localStorage.setItem('glacio-theme',p)}catch(e){}
+  const l=p==='light'||(p==='system'&&matchMedia('(prefers-color-scheme: light)').matches);document.documentElement.dataset.theme=l?'light':'dark';
+  const tc=document.querySelector('meta[name="theme-color"]');if(tc)tc.content=l?'#F3F5F8':'#0A0C0F'}
+try{matchMedia('(prefers-color-scheme: light)').addEventListener('change',()=>{if(themePref()==='system')applyTheme('system')})}catch(e){}
 
 /* ---------- events ---------- */
 const device=$('#device');
 device.addEventListener('contextmenu',e=>{if(e.target.closest('.donut'))e.preventDefault()});
 device.addEventListener('click',e=>{
+  if(SW.block){SW.block=false;if(!e.target.closest('.swdel'))return}
   const b=e.target.closest('[data-act]');if(!b)return;
   if(b.classList.contains('arc'))return;
   const a=b.dataset.act,v=b.dataset.v,t=S.tax;
   switch(a){
     case 'tab': if(V.tab===v&&v!=='home')return; V.tab=v;V.lvl=0;V.sel=null;V.grp=null;if(v==='tax'&&t.step===3){} closeIf();render();break;
-    case 'add': openAdd();break;
+    case 'add': if(V.tab==='split'){if(V.grp)openAddExp();else if(S.groups.length)openGrpPick();else openNewGrp()}else openAdd();break;
     case 'close': closeSheet();break;
     case 'open': V.type=v;V.lvl=1;V.sel=null;render();break;
     case 'acct': V.acct=v;V.lvl=2;render();break;
     case 'back': if(V.tab==='split'){V.grp=null}else{V.lvl=Math.max(0,V.lvl-1);V.sel=null}render();break;
     case 'settings': openSettings();break;
+    case 'swdel': deleteWithUndo(b.dataset.k,v);break;
+    case 'undo': undoDelete();break;
+    case 'delitem': closeSheet();deleteWithUndo(b.dataset.k,v);break;
+    case 'theme': applyTheme(v);openSettings();break;
+    case 'ssn': V.ssN=+v;V.ssSel=null;render(false);break;
+    case 'expedit': openAddExp(+v);break;
+    case 'expdel': closeSheet();deleteWithUndo('exp',E.idx);break;
+    case 'payundo':{const g=S.groups.find(x=>x.id===V.grp),p=g&&g.pay[+v];if(p&&confirm(`Undo: ${PEOPLE[p.from]} paid ${PEOPLE[p.to]} ${fmt2(p.amt)}?`))deleteWithUndo('pay',+v);break}
+    case 'person': openPerson(v);break;
+    case 'psave':{const g=S.groups.find(x=>x.id===V.grp),val=($('#pName')?.value||'').trim();if(!val){toast('Add a name','info');return}
+      if(v==='new'){const names=val.split(/[,，、]/).map(x=>x.trim()).filter(Boolean).slice(0,12),base=Date.now().toString(36);names.forEach((nm,i)=>{const k='p'+base+i;S.people[k]=nm;g.members.push(k)});toast(`${names.length} added`,'users')}
+      else{S.people[v]=val.slice(0,22);toast('Saved','check')}save();closeSheet();render(false);break}
+    case 'prm':{const g=S.groups.find(x=>x.id===V.grp);g.members=g.members.filter(x=>x!==v);save();closeSheet();render(false);toast('Removed','trash');break}
+    case 'grpadd': V.grp=v;render(false);openAddExp();break;
     case 'tbset': S.tb[b.dataset.k]=v==='true'?true:v==='false'?false:v;save();render(false);break;
     case 'tbtog': S.tb[b.dataset.k]=!S.tb[b.dataset.k];save();render(false);break;
     case 'tbkid': S.tb[b.dataset.k]=Math.max(0,Math.min(9,(S.tb[b.dataset.k]||0)+(+v)));save();render(false);break;
@@ -1704,10 +1780,9 @@ device.addEventListener('click',e=>{
     case 'export': exportData();break;
     case 'import': $('#importFile').click();break;
     case 'wipe': if(confirm(AUTH?'Erase all Glacio data on this phone? You will be signed out; your cloud copy stays.':'Erase all Glacio data on this phone? Export a backup first if you want to keep it.')){if(AUTH){AUTH=null;saveAuth();clearTimeout(pushT)}S=DEFAULT();bindState();save();closeSheet();V.tab='home';V.lvl=0;V.sel=null;V.grp=null;render();toast('All data erased','trash')}break;
-    case 'txn': openItem('txn',v);break;
-    case 'remopen': openItem('rem',v);break;
-    case 'schedopen': openItem('sched',v);break;
-    case 'delitem': delItem(b.dataset.k,v);break;
+    case 'txn': openEdit('txn',v);break;
+    case 'remopen': openEditRem(v);break;
+    case 'schedopen': openEdit('sched',v);break;
     case 'grprep': b.setAttribute('aria-checked',b.getAttribute('aria-checked')!=='true');break;
     case 'gsave': saveGrp();break;
     case 'delgrp':{const g=S.groups.find(x=>x.id===v);if(g&&confirm(`Delete ${g.n}?`)){S.groups=S.groups.filter(x=>x!==g);save();V.grp=null;render();toast('Group deleted','trash')}break}
@@ -1723,6 +1798,7 @@ device.addEventListener('click',e=>{
     case 'eamong': {if(E.among.includes(v)){if(E.among.length>1)E.among=E.among.filter(x=>x!==v)}else E.among.push(v);drawExp();break}
     case 'esave':{const amt=parseMoney($('#eAmt').value);if(!amt){toast('Enter the total','info');return}
       const g=S.groups.find(x=>x.id===V.grp),l=$('#eName').value.trim()||'Shared cost';
+      if(E.idx!=null&&g.exp[E.idx]){Object.assign(g.exp[E.idx],{l,amt,payer:E.payer,among:[...E.among]});save();closeSheet();render(false);toast('Changes saved','check');break}
       g.exp.push({l,i:'receipt',amt,payer:E.payer,among:[...E.among]});save();closeSheet();render(false);toast(`${l} split ${E.among.length} ways`,'split');break}
     case 'remtog':{const r=S.rem.find(x=>x.id===v);r.on=!r.on;save();render(false);toast(r.on?`Alert ${r.lead} day${r.lead>1?'s':''} before ${r.n}`:`${r.n} alert off`,r.on?'bell-ring':'bell-off');break}
     case 'addrem': openAddRem();break;
@@ -1811,10 +1887,28 @@ function placeInd(){const a=document.querySelector('.tab[aria-current="page"]'),
 function countUp(root){root.querySelectorAll('.dc-main,.hero-num').forEach(el=>{const m=el.textContent.match(/^([+−-]?)\$([\d,]+)(\.\d+)?$/);if(!m)return;
   const pre=m[1],n=parseFloat(m[2].replace(/,/g,'')+(m[3]||'')),d=m[3]?m[3].length-1:0,fin=el.textContent,t0=performance.now();
   const step=now=>{const k=Math.min(1,(now-t0)/300),e=1-Math.pow(1-k,3);el.textContent=k<1?pre+fmt(n*e,d):fin;if(k<1)requestAnimationFrame(step)};requestAnimationFrame(step)})}
-device.addEventListener('pointerdown',e=>{const t=e.target.closest('.btn,.chip,button.row,.leg,.gcard,.prov,.key,.cat,.icon-btn,.seg button,.mini-act,.bell,.tab-add,.tab');if(!t)return;
-  if(getComputedStyle(t).position==='static')t.classList.add('rp');else t.style.overflow='hidden';
-  const r=t.getBoundingClientRect(),d=Math.max(r.width,r.height)*2.2,s=document.createElement('span');s.className='ripple';
-  s.style.cssText='width:'+d+'px;height:'+d+'px;left:'+(e.clientX-r.left-d/2)+'px;top:'+(e.clientY-r.top-d/2)+'px';t.appendChild(s);setTimeout(()=>s.remove(),650)});
+/* swipe a row left to show Delete */
+const SW={el:null,x0:0,y0:0,dx:0,base:0,on:false,block:false};
+const swRow=s=>s.querySelector('.swrow');
+function swClose(except){document.querySelectorAll('.swipe.open').forEach(x=>{if(x!==except){x.classList.remove('open');swRow(x).style.transform=''}})}
+function swStart(target,x,y){SW.block=false;const s=target.closest('.swipe');
+  if(!s){if(document.querySelector('.swipe.open')&&!target.closest('.swdel')){swClose();SW.block=true}return}
+  if(target.closest('.swdel'))return;SW.el=s;SW.x0=x;SW.y0=y;SW.dx=0;SW.on=false;SW.base=s.classList.contains('open')?-76:0}
+function swMove(x,y,ev){if(!SW.el)return;const dx=x-SW.x0,dy=y-SW.y0;
+  if(!SW.on){if(Math.abs(dx)>8&&Math.abs(dx)>Math.abs(dy)*1.2){SW.on=true;swClose(SW.el);SW.el.classList.add('dragging')}else{if(Math.abs(dy)>10)SW.el=null;return}}
+  if(ev&&ev.cancelable)ev.preventDefault();
+  SW.dx=Math.max(-120,Math.min(0,SW.base+dx));swRow(SW.el).style.transform=`translateX(${SW.dx}px)`}
+function swEnd(){if(!SW.el)return;const s=SW.el;SW.el=null;s.classList.remove('dragging');
+  if(!SW.on){if(s.classList.contains('open')){SW.block=true;swClose()}return}
+  SW.block=true;const open=SW.dx<-38;s.classList.toggle('open',open);swRow(s).style.transform=open?'translateX(-76px)':''}
+// fingers: touch events (we stop the page scrolling only once the move is clearly sideways)
+device.addEventListener('touchstart',e=>{if(e.touches.length===1)swStart(e.target,e.touches[0].clientX,e.touches[0].clientY)},{passive:true});
+device.addEventListener('touchmove',e=>{if(e.touches.length===1)swMove(e.touches[0].clientX,e.touches[0].clientY,e)},{passive:false});
+device.addEventListener('touchend',swEnd);device.addEventListener('touchcancel',swEnd);
+// mouse / trackpad
+device.addEventListener('pointerdown',e=>{if(e.pointerType==='mouse')swStart(e.target,e.clientX,e.clientY)});
+device.addEventListener('pointermove',e=>{if(e.pointerType==='mouse')swMove(e.clientX,e.clientY)});
+device.addEventListener('pointerup',e=>{if(e.pointerType==='mouse')swEnd()});
 device.addEventListener('pointerover',e=>{const m=e.target.closest('[data-ss]');if(m)ssPick(+m.dataset.ss)});
 device.addEventListener('pointerover',e=>{const b=e.target.closest('[data-yr]');if(b&&+b.dataset.yr!==V.fcYr){V.fcYr=+b.dataset.yr;fcReadout()}});
 
