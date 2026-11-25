@@ -369,6 +369,20 @@ button.row:active{background:var(--ink-3)}
 .sk-row:first-child{border-top:0}
 .rcth:has(img:not([src])){animation:skpulse 1.2s ease-in-out infinite}
 .rcth img:not([src]){visibility:hidden}
+.addsheet{display:flex;flex-direction:column;gap:8px}
+.addsheet .amtrow{display:grid;grid-template-columns:44px 1fr 44px;align-items:center}
+.addsheet .amount-big{font-size:40px;height:50px;line-height:50px}
+.addsheet .field{height:44px}
+.addsheet .cat{height:40px}
+.addsheet .key{height:42px;font-size:20px}
+.addsheet .opt .chip{height:30px}
+#aSug:empty{display:none}
+.camb{width:40px;height:40px;border-radius:12px;background:var(--ink-3);display:grid;place-items:center;color:var(--paper-2);justify-self:end;position:relative}
+.camb svg{width:20px;height:20px}
+.camb.on{background:var(--ice-soft);color:var(--ice)}
+.ctxrow{margin:-2px 0 6px}
+@media (max-height:620px){.sheet{max-height:100%;border-radius:20px 20px 0 0}.addsheet #aSug{display:none}.addsheet .key{height:34px!important}.addsheet .cat{height:32px!important}.addsheet .field{height:38px!important}.addsheet .amount-big{font-size:32px!important;height:40px!important;line-height:40px!important}.addsheet{gap:5px!important}}
+@media (max-height:760px){.addsheet .key{height:38px}.addsheet .amount-big{font-size:36px;height:44px;line-height:44px}.addsheet .cat{height:36px}.addsheet .field{height:40px}.addsheet{gap:6px}}
 @media (prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important}}
 </style>
 
@@ -469,11 +483,13 @@ const RAMP = ['#F3F5F7','#C5CCD4','#97A1AD','#717B87','#535C67','#3E454E','#2E34
 
 const SER={rrsp:'#3987e5',tfsa:'#d95926',fhsa:'#199e70',cash:'#c98500'}; // validated dark categorical slots 1-4
 /* payment accounts are yours to set up (Settings or the + sheet) */
-const ACCT_KIND={credit:{k:'Credit',i:'credit-card'},debit:{k:'Debit',i:'landmark'},cash:{k:'Cash',i:'banknote'}};
+const ACCT_KIND={credit:{k:'Credit',l:'Credit card',i:'credit-card',subs:{visa:'Visa',mc:'Mastercard',amex:'Amex',other:'Other'}},
+  debit:{k:'Debit',l:'Debit',i:'landmark',subs:{chequing:'Chequing',savings:'Savings'}},cash:{k:'Cash',l:'Cash',i:'banknote',subs:null}};
 const ACCT_COLORS=['#3987e5','#d95926','#199e70','#c98500','#9085e9','#d55181']; // fixed order, a colour stays with its account
 const LEGACY_ACCTS={visa:{n:'Visa',kind:'credit'},amex:{n:'Amex',kind:'credit'},debit:{n:'Chequing',kind:'debit'},cash:{n:'Cash',kind:'cash'}};
 const NOACCT={n:'No account',i:'wallet',k:'Other',c:'#717B87'};
-function acct(id){const a=S.accts.find(x=>x.id===id);if(!a)return NOACCT;const kd=ACCT_KIND[a.kind]||ACCT_KIND.debit;return {n:a.n,i:kd.i,k:kd.k,c:a.c}}
+function acct(id){const a=S.accts.find(x=>x.id===id);if(!a)return NOACCT;const kd=ACCT_KIND[a.kind]||ACCT_KIND.debit,sub=kd.subs&&a.sub&&kd.subs[a.sub];
+  return {n:a.n,i:a.sub==='savings'?'piggy-bank':kd.i,k:kd.k,d:sub?`${kd.l} · ${sub}`:kd.l,c:a.c}}
 const acctKey=t=>S.accts.some(a=>a.id===t.acct)?t.acct:'';
 const CATS = {
   housing:{n:'Housing',i:'house',c:'#3987e5'}, groceries:{n:'Groceries',i:'shopping-basket',c:'#199e70'}, dining:{n:'Dining',i:'utensils',c:'#d95926'},
@@ -747,7 +763,10 @@ bindState();
 const V={tview:'plan',fcYr:null,tab:'home',lvl:0,type:'out',acct:null,sel:null,grp:null,nudged:{},newId:null};
 function save(){try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}markDirty()}
 try{navigator.storage&&navigator.storage.persist&&navigator.storage.persist()}catch(e){}
-const monthTx=()=>S.txns.filter(t=>t.date&&t.date.slice(0,7)===MONTH_KEY);
+const ctxOn=()=>!!(S.biz&&S.biz.on&&S.biz.list&&S.biz.list.length);
+const ctxId=()=>ctxOn()&&S.ctx&&S.biz.list.some(b=>b.id===S.ctx)?S.ctx:'personal';
+const inCtx=t=>{const c=ctxId();return c==='personal'?!t.biz:!!(t.biz&&t.bizId===c)};
+const monthTx=()=>S.txns.filter(t=>t.date&&t.date.slice(0,7)===MONTH_KEY&&inCtx(t));
 const byNewest=(a,b)=>b.date.localeCompare(a.date)||b.id-a.id;
 const dim=(y,m)=>new Date(y,m+1,0).getDate();
 function nextDay(day){const y=TODAY.getFullYear(),m=TODAY.getMonth();let d=new Date(y,m,Math.min(day,dim(y,m)));
@@ -801,7 +820,7 @@ function txnRow(t){
 const SS={spent:'#d95926',saved:'#3987e5'}; // validated pair on the dark surface
 function ssData(){const out=[],N=V.ssN||6;
   for(let i=N-1;i>=0;i--){const d=new Date(TODAY.getFullYear(),TODAY.getMonth()-i,1),k=iso(d).slice(0,7);
-    const tx=S.txns.filter(t=>t.date&&t.date.slice(0,7)===k),inc=sum(tx.filter(t=>t.type==='in'),t=>t.amt),spent=sum(tx.filter(t=>t.type==='out'),t=>t.amt);
+    const tx=S.txns.filter(t=>t.date&&t.date.slice(0,7)===k&&inCtx(t)),inc=sum(tx.filter(t=>t.type==='in'),t=>t.amt),spent=sum(tx.filter(t=>t.type==='out'),t=>t.amt);
     out.push({k,m:d.getMonth(),now:i===0,inc,spent,saved:inc-spent,n:tx.length})}
   return out}
 const niceStep=v=>{const p=Math.pow(10,Math.floor(Math.log10(v))),f=v/p;return (f<=1?1:f<=2?2:f<=5?5:10)*p};
@@ -854,10 +873,11 @@ function vHome(){
   if(V.lvl===0){
     const net=inc-out;
     const selV=V.sel==='in'?inc:V.sel==='out'?out:null;
-    const up=upcoming().slice(0,3);
+    const up=upcoming().filter(u=>u.src==='rem'?ctxId()==='personal':inCtx(u.s)).slice(0,3);
     const recent=[...tx].sort(byNewest).slice(0,7);
     return `
     <div class="top"><h1 class="grow">${MONTH_FULL[TODAY.getMonth()]}</h1>${eyeBtn()}<button class="icon-btn" data-act="settings" aria-label="Settings and backup">${ico('settings')}</button></div>
+    ${ctxOn()?`<div class="chips ctxrow">${[{id:'personal',n:'Personal'},...S.biz.list].map(b=>`<button class="chip${ctxId()===b.id?' on':''}" data-act="ctx" data-v="${b.id}">${b.c?`<span class="sw" style="background:${b.c}"></span>`:''}${esc(b.n)}</button>`).join('')}</div>`:''}
     ${donut([{k:'out',v:out,c:'var(--paper)',l:'Expense'},{k:'in',v:inc,c:'var(--ice)',l:'Income'}],{hold:true,
       sub:selV===null?'Net':(V.sel==='in'?'Income':'Expense'),main:selV===null?(S.hide?'':net>=0?'+':'')+fmt2(net):fmt2(selV),foot:selV===null?`${fmt2(inc)} in`:pct(selV/(inc+out||1),0)+' of flow'})}
     <div class="hint">${ico('pointer')}Hold a slice to open</div>
@@ -867,7 +887,7 @@ function vHome(){
     </div>
     <div class="sec"><div class="sec-h"><span class="label">Spend &amp; save</span><div class="chips">${[3,6,12].map(n=>`<button class="chip${(V.ssN||6)===n?' on':''}" data-act="ssn" data-v="${n}">${n===12?'1Y':n+'M'}</button>`).join('')}</div></div>
       <div class="list" style="padding:14px 12px 8px">${ssChart()}</div></div>
-    ${invSection()}
+    ${ctxId()==='personal'?invSection():''}
     <div class="sec"><div class="sec-h"><span class="label">Upcoming</span><button class="chip" data-act="tab" data-v="bills">All${ico('chevron-right')}</button></div>
       <div class="list">${up.map(u=>`<div class="row"><span class="ic${u.days<=7?' ice':''}">${ico(u.i)}</span><span class="grow fit">${esc(u.n)}</span><span class="days${u.days<=7?' soon':''}">${u.days===0?'Today':u.days+'d'}</span><span class="amt">${u.type==='in'?'+':''}${fmt2(u.amt)}</span></div>`).join('')||empty('Nothing due soon','bell')}</div></div>
     <div class="sec"><div class="sec-h"><span class="label">Recent</span><span class="chip">${tx.length} this month</span></div>
@@ -981,7 +1001,7 @@ function vTax(){
     <div style="margin-top:18px"><button class="btn" data-act="tstep" data-v="1">Next${ico('arrow-right')}</button></div>`;
   }
   if(st===1){
-    const tracked=sum(monthTx().filter(x=>x.type==='out'),x=>x.amt);
+    const tracked=sum(S.txns.filter(x=>x.type==='out'&&!x.biz&&x.date&&x.date.slice(0,7)===MONTH_KEY),x=>x.amt);
     return `${head}
     <div class="q">What do you earn?</div><div class="mute small" style="margin-bottom:12px">Yearly, before tax.</div>
     <div class="list">
@@ -1182,28 +1202,32 @@ function closeSheet(){const w=$('#sheetWrap');w.classList.remove('open');$('.tab
 
 /* add income / expense */
 let A;
-function openAdd(){A={type:'out',amt:'',cat:'groceries',acct:(S.accts.find(a=>a.id===S.lastAcct)||S.accts[0]||{}).id||'',when:'today',repeat:'Once',remind:'Off',m:''};drawAdd()}
+function openAdd(){const c=ctxId();A={type:'out',amt:'',cat:'groceries',acct:(S.accts.find(a=>a.id===S.lastAcct)||S.accts[0]||{}).id||'',when:'today',repeat:'Once',remind:'Off',m:'',
+  biz:c!=='personal',bizId:c!=='personal'?c:undefined,bcat:'other',slip:'t4a'};drawAdd()}
+const BCAT_CAT={meals:'dining',travel:'transport',vehicle:'transport',phone:'bills',rent:'housing',home:'housing',ins:'bills',supplies:'shopping',office:'shopping',equip:'shopping'};
 function drawAdd(){
-  const cats=A.type==='out'?OUT_CATS:IN_CATS;
+  const cats=A.type==='out'?OUT_CATS:IN_CATS,bz=A.biz&&S.biz.on?bizOf(A.bizId):null;
   const chipset=(name,vals)=>vals.map(v=>`<button class="chip${A[name]===v?' on':''}" data-act="aset" data-k="${name}" data-v="${v}">${v}</button>`).join('');
+  const saveLbl=A.edit?'Save changes':bz?`Save to ${bz.n}`:'Save '+CATS[A.cat].n;
   openSheet(`
   <div class="top" style="height:40px"><div class="seg" style="flex:1"><button data-act="atype" data-v="out" aria-pressed="${A.type==='out'}">Expense</button><button data-act="atype" data-v="in" aria-pressed="${A.type==='in'}">Income</button></div><button class="icon-btn" data-act="close" aria-label="Close">${ico('x')}</button></div>
-  <div class="amount-big" id="aAmt">${amtHTML()}</div>
-  <div class="rcrow" style="margin-bottom:10px">${(A.rc||[]).map(r=>`<span class="rcth"><img data-rc="${r.id}" ${RCURL[r.id]?`src="${RCURL[r.id]}"`:''} alt="Receipt" ${A.edit&&A.edit.kind==='txn'&&!r.isNew?`data-act="rcview" data-v="${r.id}" data-x="${esc(String(A.edit.id))}"`:''}><button class="x" data-act="rcrm" data-v="${r.id}" aria-label="Remove receipt">${ico('x')}</button></span>`).join('')}
-    <label class="chip${A.ocr?' ice':''}">${ico('camera')}<span id="ocrMsg">${A.ocr?esc(A.ocr):(A.rc&&A.rc.length?'Add another':'Scan receipt')}</span><input type="file" id="rcFile" accept="image/*" hidden></label></div>
-  <div style="display:flex;flex-direction:column;gap:10px">
-    <div class="field">${ico('store')}<input id="aName" placeholder="${A.type==='out'?'Where? e.g. Loblaws':'From? e.g. Payroll'}" value="${esc(A.m)}" maxlength="22" autocomplete="off"></div>
+  <div class="addsheet">
+    <div class="amtrow"><span></span><div class="amount-big" id="aAmt">${amtHTML()}</div>
+      <label class="camb${A.ocr||(A.rc&&A.rc.length)?' on':''}" aria-label="Scan or attach a receipt">${ico('camera')}<input type="file" id="rcFile" accept="image/*" hidden></label></div>
+    ${A.ocr||(A.rc&&A.rc.length)?`<div class="rcrow">${(A.rc||[]).map(r=>`<span class="rcth"><img data-rc="${r.id}" ${RCURL[r.id]?`src="${RCURL[r.id]}"`:''} alt="Receipt" ${A.edit&&A.edit.kind==='txn'&&!r.isNew?`data-act="rcview" data-v="${r.id}" data-x="${esc(String(A.edit.id))}"`:''}><button class="x" data-act="rcrm" data-v="${r.id}" aria-label="Remove receipt">${ico('x')}</button></span>`).join('')}${A.ocr?`<span class="chip ice">${ico('camera')}<span id="ocrMsg">${esc(A.ocr)}</span></span>`:''}</div>`:''}
+    <div style="display:flex;gap:8px"><div class="field" style="flex:1;min-width:0">${ico('store')}<input id="aName" placeholder="${A.type==='out'?'Where? e.g. Loblaws':'From? e.g. Payroll'}" value="${esc(A.m)}" maxlength="22" autocomplete="off"></div>
+      ${bz&&A.type==='out'?`<div class="field" style="width:112px;flex:none;padding:0 10px;gap:4px"><span class="mute small" style="font-weight:800">HST</span><input id="aHst" inputmode="decimal" placeholder="0.00" value="${esc(A.hst||'')}" aria-label="Sales tax paid (optional)"></div>`:''}</div>
     <div class="chips" id="aSug">${sugHTML(A.m)}</div>
-    <div class="catgrid" style="grid-template-columns:repeat(${cats.length},1fr)">${cats.map(c=>`<button class="cat" style="--cc:${CATS[c].c}" data-act="acat" data-v="${c}" aria-pressed="${A.cat===c}" aria-label="${CATS[c].n}" title="${CATS[c].n}">${ico(CATS[c].i)}</button>`).join('')}</div>
+    ${bz?(A.type==='out'?`<div class="opt"><span class="lbl">${ico('tag')}CRA</span><div class="chips">${Object.entries(BCAT).map(([k,x])=>`<button class="chip${A.bcat===k?' on':''}" data-act="aset" data-k="bcat" data-v="${k}">${x.s}</button>`).join('')}</div></div>
+`
+     :`<div class="opt"><span class="lbl">${ico('tag')}Slip</span><div class="chips">${Object.entries(BINC).map(([k,x])=>`<button class="chip${A.slip===k?' on':''}" data-act="aset" data-k="slip" data-v="${k}">${x.s}</button>`).join('')}</div></div>`)
+     :`<div class="catgrid" style="grid-template-columns:repeat(${cats.length},1fr)">${cats.map(c=>`<button class="cat" style="--cc:${CATS[c].c}" data-act="acat" data-v="${c}" aria-pressed="${A.cat===c}" aria-label="${CATS[c].n}" title="${CATS[c].n}">${ico(CATS[c].i)}</button>`).join('')}</div>`}
     <div class="opt"><span class="lbl">${ico('wallet')}From</span><div class="chips">${S.accts.map(a=>`<button class="chip${A.acct===a.id?' on':''}" data-act="aset" data-k="acct" data-v="${a.id}">${esc(a.n)}</button>`).join('')}<button class="chip${S.accts.length?'':' ice'}" data-act="acctnew" data-v="add" aria-label="Add account">${ico('plus')}${S.accts.length?'':'Add account'}</button></div></div>
     <div class="opt"><span class="lbl">${ico('calendar')}When</span><div class="chips">${WHEN().map(w=>`<button class="chip${A.when===w.k?' on':''}" data-act="aset" data-k="when" data-v="${w.k}">${w.l}</button>`).join('')}<label class="chip datechip${A.when==='custom'?' on':''}">${ico('calendar')}${A.when==='custom'&&A.date?dayStr(A.date):'Pick date'}<input type="date" id="aDate" value="${A.date||TODAY_ISO}" aria-label="Pick a date"></label></div></div>
-    ${S.biz.on?`<div class="opt"><span class="lbl">${ico('briefcase')}For</span><div class="chips"><button class="chip${A.biz?'':' on'}" data-act="abiz" data-v="0">Personal</button>${S.biz.list.map(b=>`<button class="chip${A.biz&&A.bizId===b.id?' on':''}" data-act="abiz" data-v="${b.id}"><span class="sw" style="background:${b.c}"></span>${esc(b.n)}</button>`).join('')}<button class="chip" data-act="biznew" data-v="add" aria-label="Add business">${ico('plus')}</button></div></div>
-    ${A.biz?(A.type==='out'?`<div class="opt"><span class="lbl">${ico('tag')}CRA</span><div class="chips">${Object.entries(BCAT).map(([k,x])=>`<button class="chip${A.bcat===k?' on':''}" data-act="aset" data-k="bcat" data-v="${k}">${x.s}</button>`).join('')}</div></div>
-    <div class="opt"><span class="lbl">${ico('receipt')}HST</span><div class="hstin"><span class="mute">$</span><input id="aHst" inputmode="decimal" placeholder="Tax paid · optional" value="${esc(A.hst||'')}"></div></div>`
-     :`<div class="opt"><span class="lbl">${ico('tag')}Slip</span><div class="chips">${Object.entries(BINC).map(([k,x])=>`<button class="chip${A.slip===k?' on':''}" data-act="aset" data-k="slip" data-v="${k}">${x.s}</button>`).join('')}</div></div>`):''}`:''}
+    ${A.edit&&S.biz.on&&S.biz.list.length?`<div class="opt"><span class="lbl">${ico('briefcase')}For</span><div class="chips"><button class="chip${A.biz?'':' on'}" data-act="abiz" data-v="0">Personal</button>${S.biz.list.map(b=>`<button class="chip${A.biz&&A.bizId===b.id?' on':''}" data-act="abiz" data-v="${b.id}"><span class="sw" style="background:${b.c}"></span>${esc(b.n)}</button>`).join('')}</div></div>`:''}
     ${A.edit&&A.edit.kind==='txn'?'':`<div class="opt"><span class="lbl">${ico('repeat')}Repeat</span><div class="chips">${chipset('repeat',['Once','Weekly','2 Wks','2×/Mo','Monthly'])}</div></div>`}
     <div class="keypad">${['1','2','3','4','5','6','7','8','9','.','0','del'].map(k=>`<button class="key" data-act="key" data-v="${k}" aria-label="${k==='del'?'Delete':k}">${k==='del'?ico('delete'):k}</button>`).join('')}</div>
-    <div class="savebar${A.edit?' two':''}">${A.edit?`<button class="btn ghost" data-act="delitem" data-k="${A.edit.kind}" data-v="${esc(String(A.edit.id))}" aria-label="Delete">${ico('trash')}</button>`:''}<button class="btn" data-act="asave">${ico('check')}${A.edit?'Save changes':'Save '+CATS[A.cat].n}</button></div>
+    <div class="savebar${A.edit?' two':''}">${A.edit?`<button class="btn ghost" data-act="delitem" data-k="${A.edit.kind}" data-v="${esc(String(A.edit.id))}" aria-label="Delete">${ico('trash')}</button>`:''}<button class="btn" data-act="asave">${ico('check')}${esc(saveLbl)}</button></div>
   </div>`,'add');
   loadThumbs($('#sheet'));
 }
@@ -1215,17 +1239,18 @@ function payees(type){const m=new Map();
 function sugHTML(q){if(A.edit)return '';q=(q||'').trim().toLowerCase();
   const list=payees(A.type).filter(p=>!q||p.m.toLowerCase().startsWith(q)&&p.m.toLowerCase()!==q).slice(0,6);
   return list.map(p=>`<button class="chip" data-act="asug" data-v="${esc(p.m)}">${CATS[p.cat]?`<span class="sw" style="background:${CATS[p.cat].c}"></span>`:''}${esc(p.m)} · ${fmt2(p.amt)}</button>`).join('')}
-function whenDate(){if(A.when==='custom'&&A.date)return fromIso(A.date);return (WHEN().find(x=>x.k===A.when)||WHEN()[1]).d}
+function whenDate(){if(A.when==='custom'&&A.date)return fromIso(A.date);return (WHEN().find(x=>x.k===A.when)||WHEN()[0]).d}
 function openEdit(kind,id){
   const t=kind==='txn'?S.txns.find(x=>String(x.id)===String(id)):S.sched.find(x=>x.id===id);if(!t)return;
   A={type:t.type,amt:String(+t.amt.toFixed(2)),cat:t.cat,acct:t.acct||'',when:'custom',date:kind==='txn'?t.date:t.next,
      repeat:kind==='txn'?'Once':t.repeat,remind:t.remind||'Off',m:t.m,edit:{kind,id},fresh:true,biz:!!t.biz,bizId:t.bizId,bcat:t.bcat||'other',slip:t.slip||'t4a',hst:t.hst?String(t.hst):'',rc:(t.rc||[]).map(id=>({id})),rcOrig:[...(t.rc||[])]};drawAdd()}
 function WHEN(){const n1=new Date(TODAY.getFullYear(),TODAY.getMonth()+1,1);
-  return [{k:'yesterday',l:'Yesterday',d:addDays(TODAY,-1)},{k:'today',l:'Today',d:TODAY},{k:'tomorrow',l:'Tomorrow',d:addDays(TODAY,1)},{k:'next1',l:`${MON[n1.getMonth()]} 1`,d:n1}]}
+  return [{k:'today',l:'Today',d:TODAY},{k:'yesterday',l:'Yesterday',d:addDays(TODAY,-1)},{k:'tomorrow',l:'Tomorrow',d:addDays(TODAY,1)},{k:'next1',l:`${MON[n1.getMonth()]} 1`,d:n1}]}
 function saveAdd(){
   const amt=parseFloat(A.amt);if(!amt){toast('Enter an amount first','info');return}
   const name=($('#aName')?.value||'').trim()||CATS[A.cat].n;
-  syncA();const d=whenDate(), past=d<=TODAY, w={d};
+  syncA();if(A.biz&&A.type==='out'&&!A.edit)A.cat=BCAT_CAT[A.bcat]||'shopping';
+  const d=whenDate(), past=d<=TODAY, w={d};
   const bz=S.biz.on&&A.biz?{biz:true,bizId:A.bizId||(S.biz.list[0]||{}).id,bcat:A.type==='out'?(A.bcat||'other'):undefined,slip:A.type==='in'?(A.slip||'t4a'):undefined,hst:A.type==='out'?(parseMoney(A.hst||'')||0):0}:{biz:false,bizId:undefined,bcat:undefined,slip:undefined,hst:0};
   const rcIds=(A.rc||[]).map(r=>r.id);(A.rc||[]).filter(r=>r.isNew).forEach(r=>RDB.put(r.id,r.blob).catch(()=>{}));
   (A.rcOrig||[]).filter(id=>!rcIds.includes(id)).forEach(rcDelete);
@@ -1503,7 +1528,7 @@ function openSettings(){
       <button class="row" data-act="biznew" data-v="settings"><span class="ic ice">${ico('plus')}</span><span class="grow">Add business</span>${ico('chevron-right')}</button></div>`:''}
     <div class="mute small" style="margin-top:8px;white-space:normal">${S.biz.on?'Pick a business when you add a record. Tax → Business shows each one, with PDFs for your accountant.':'Adds businesses, CRA expense lines and receipt PDFs for your accountant (Tax → Business).'}</div></div>
   <div class="sec"><span class="label">Accounts</span>
-  <div class="list" style="background:var(--ink-3);margin-top:8px">${S.accts.map(a=>{const x=acct(a.id);return `<div class="row"><span class="ic cc" style="--cc:${a.c}">${ico(x.i)}</span><button class="grow fit" style="text-align:left" data-act="acedit" data-v="${a.id}">${esc(a.n)}</button><span class="mute small">${x.k}</span><button class="mini-act" data-act="acedit" data-v="${a.id}" aria-label="Edit ${esc(a.n)}">${ico('pencil')}</button><button class="mini-act" data-act="acdel" data-v="${a.id}" aria-label="Remove ${esc(a.n)}">${ico('trash')}</button></div>`}).join('')}
+  <div class="list" style="background:var(--ink-3);margin-top:8px">${S.accts.map(a=>{const x=acct(a.id);return `<div class="row"><span class="ic cc" style="--cc:${a.c}">${ico(x.i)}</span><button class="grow fit" style="text-align:left" data-act="acedit" data-v="${a.id}">${esc(a.n)}</button><span class="mute small">${esc(x.d)}</span><button class="mini-act" data-act="acedit" data-v="${a.id}" aria-label="Edit ${esc(a.n)}">${ico('pencil')}</button><button class="mini-act" data-act="acdel" data-v="${a.id}" aria-label="Remove ${esc(a.n)}">${ico('trash')}</button></div>`}).join('')}
     <button class="row" data-act="acctnew" data-v="settings"><span class="ic ice">${ico('plus')}</span><span class="grow">Add account</span>${ico('chevron-right')}</button></div></div>
   <div class="sec"><span class="label">Backup</span>
   <div class="list" style="background:var(--ink-3);margin-top:8px">
@@ -1562,18 +1587,19 @@ function delItem(kind,id){
 
 /* new payment account */
 let AC;
-function openAcctNew(from){AC={kind:'credit',from};drawAcctNew()}
-function openAcctEdit(id){const a=S.accts.find(x=>x.id===id);if(!a)return;AC={kind:a.kind,from:'settings',editId:id,n:a.n};drawAcctNew()}
+function openAcctNew(from){AC={kind:'credit',sub:'visa',from};drawAcctNew()}
+function openAcctEdit(id){const a=S.accts.find(x=>x.id===id);if(!a)return;AC={kind:a.kind,sub:a.sub,from:'settings',editId:id,n:a.n};drawAcctNew()}
 function drawAcctNew(){const nm=$('#acName')?.value??AC.n??'';
   openSheet(`<div class="top" style="height:40px">${AC.from==='add'?`<button class="icon-btn" data-act="acback" aria-label="Back">${ico('chevron-left')}</button>`:''}<h2>${AC.editId?'Edit account':'New account'}</h2><button class="icon-btn" data-act="close" aria-label="Close">${ico('x')}</button></div>
   <div style="display:flex;flex-direction:column;gap:10px">
-  <div class="seg">${Object.entries(ACCT_KIND).map(([k,x])=>`<button data-act="ackind" data-v="${k}" aria-pressed="${AC.kind===k}">${x.k}</button>`).join('')}</div>
-  <div class="field">${ico('tag')}<input id="acName" placeholder="${{credit:'e.g. TD Visa',debit:'e.g. RBC Chequing',cash:'e.g. Cash'}[AC.kind]}" maxlength="18" value="${esc(nm)}"></div>
+  <div class="seg">${Object.entries(ACCT_KIND).map(([k,x])=>`<button data-act="ackind" data-v="${k}" aria-pressed="${AC.kind===k}">${x.l}</button>`).join('')}</div>
+  ${ACCT_KIND[AC.kind].subs?`<div class="chips">${Object.entries(ACCT_KIND[AC.kind].subs).map(([k,l])=>`<button class="chip${AC.sub===k?' on':''}" data-act="acsub" data-v="${k}">${l}</button>`).join('')}</div>`:''}
+  <div class="field">${ico('tag')}<input id="acName" placeholder="${AC.kind==='credit'?'e.g. TD Aeroplan '+(ACCT_KIND.credit.subs[AC.sub]||'Visa'):AC.kind==='debit'?'e.g. RBC '+(AC.sub==='savings'?'Savings':'Chequing'):'e.g. Cash'}" maxlength="24" value="${esc(nm)}"></div>
   <div class="savebar"><button class="btn" data-act="acsave">${ico('check')}${AC.editId?'Save changes':'Add account'}</button></div></div>`,'acct')}
 function saveAcct(){const n=$('#acName').value.trim();if(!n){toast('Give it a name','info');return}
-  if(AC.editId){const a=S.accts.find(x=>x.id===AC.editId);if(a)Object.assign(a,{n,kind:AC.kind});save();openSettings();render(false);toast('Account updated','wallet');return}
+  if(AC.editId){const a=S.accts.find(x=>x.id===AC.editId);if(a)Object.assign(a,{n,kind:AC.kind,sub:ACCT_KIND[AC.kind].subs?AC.sub:undefined});save();openSettings();render(false);toast('Account updated','wallet');return}
   const used=S.accts.map(a=>a.c),c=ACCT_COLORS.find(x=>!used.includes(x))||'#717B87',id='a'+uid();
-  S.accts.push({id,n,kind:AC.kind,c});save();
+  S.accts.push({id,n,kind:AC.kind,sub:ACCT_KIND[AC.kind].subs?AC.sub:undefined,c});save();
   if(AC.from==='add'){A.acct=id;drawAdd()}else openSettings();
   toast(`${n} added`,'wallet')}
 
@@ -1999,7 +2025,9 @@ device.addEventListener('click',e=>{
     case 'sbout': if(AUTH&&confirm('Sign out of cloud sync? Your data stays on this phone.')){const tok=AUTH.access_token;
       fetch(SB.url+'/auth/v1/logout',{method:'POST',headers:{apikey:SB.key,Authorization:'Bearer '+tok}}).catch(()=>{});AUTH=null;saveAuth();CS=null;csSave();V.cg=null;clearTimeout(pushT);closeSheet();render();toast('Signed out','info')}break;
     case 'acctnew': if(v==='add'&&$('#aName'))A.m=$('#aName').value; openAcctNew(v);break;
-    case 'ackind': AC.kind=v;drawAcctNew();break;
+    case 'ackind': AC.kind=v;AC.sub=ACCT_KIND[v].subs?Object.keys(ACCT_KIND[v].subs)[0]:undefined;drawAcctNew();break;
+    case 'acsub': AC.sub=v;drawAcctNew();break;
+    case 'ctx': S.ctx=v;save();V.lvl=0;V.sel=null;V.ssSel=null;render(false);break;
     case 'acsave': saveAcct();break;
     case 'acback': drawAdd();break;
     case 'acdel':{const a=S.accts.find(x=>x.id===v);if(a&&confirm(`Remove ${a.n}? Its records stay, marked "No account".`)){S.accts=S.accts.filter(x=>x!==a);save();openSettings();render(false)}break}
@@ -2044,7 +2072,7 @@ device.addEventListener('click',e=>{
       if(R.editId){const r=S.rem.find(x=>x.id===R.editId);if(r)Object.assign(r,{kind:R.kind,n,amt,day,lead:R.lead});save();closeSheet();render(false);toast('Changes saved','check');break}
       S.rem.push({id:'r'+Date.now(),kind:R.kind,n,amt,day,lead:R.lead,on:true});save();closeSheet();render(false);toast(`${n} reminder set`,'bell-ring');break}
     case 'atype': A.type=v;A.cat=v==='out'?'groceries':'salary';A.m=$('#aName').value;drawAdd();break;
-    case 'acat': A.cat=v;b.parentElement.querySelectorAll('.cat').forEach(c=>c.setAttribute('aria-pressed',c===b));$('[data-act="asave"]').innerHTML=ico('check')+(A.edit?'Save changes':'Save '+CATS[v].n);try{lucide.createIcons()}catch(e){};break;
+    case 'acat': A.cat=v;b.parentElement.querySelectorAll('.cat').forEach(c=>c.setAttribute('aria-pressed',c===b));$('[data-act="asave"]').innerHTML=ico('check')+(A.edit?'Save changes':A.biz&&bizOf(A.bizId)?'Save to '+esc(bizOf(A.bizId).n):'Save '+CATS[v].n);try{lucide.createIcons()}catch(e){};break;
     case 'aset': A[b.dataset.k]=v;b.parentElement.querySelectorAll('.chip').forEach(c=>c.classList.toggle('on',c===b));break;
     case 'key':{let s=A.amt;if(A.fresh){A.fresh=false;if(v!=='del')s=''}if(v==='del')s=s.slice(0,-1);else if(v==='.'){if(!s.includes('.'))s=(s||'0')+'.'}else{if(s.includes('.')&&s.split('.')[1].length>=2)break;if(s.replace('.','').length>=7)break;s=(s==='0'?'':s)+v}
       A.amt=s;$('#aAmt').innerHTML=amtHTML();break}
