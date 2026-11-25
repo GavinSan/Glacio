@@ -60,3 +60,4 @@ Amounts live in `TB_DEF`, `CR26` and `BEN` near the top of the script. "Checked"
 - Federal credits 2026 (age, pension, disability, medical): taxtips.ca, Carleton tax appendix 2026, canadianmoneyhelp.ca
 - Ontario Trillium and Ontario Child Benefit 2026–27: canada.ca (Province of Ontario page), lifemoney.ca
 - Canada Disability Benefit 2026–27: immigrationnewscanada.ca
+- **Supabase keep-alive:** the Free plan pauses a project after about a week without activity. `.github/workflows/supabase-keepalive.yml` calls the `glacio_ping` function (`supabase/keepalive.sql`) every 3 days. GitHub runs scheduled workflows only from the default branch, and turns them off after 60 days without repository activity (it emails you first).
