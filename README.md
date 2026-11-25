@@ -33,7 +33,7 @@ Then visit http://localhost:8765. It shows a phone frame on desktop.
 | Self-employed | Settings switch, then add each business (name, optional CRA business number). Pick the business on each record, pick the CRA T2125 line (or T4A slip for income), note HST paid. Tax → Business shows All or one business (each is its own T2125) and makes two PDFs, one section per business, for your accountant: expenses with every receipt, and income. |
 | Receipts | Attach a photo to any record. "Scan receipt" reads the total, date, store and HST on the phone itself (Tesseract, open source, served from `vendor/`; nothing is sent anywhere). Photos stay on the phone and copy to your private Supabase folder when signed in. |
 | Settings | Your payment accounts (credit, debit, cash), export / restore a backup file, erase all data. Apple Wallet auto-logging waits for the App Store version. |
-| Split | Create a group, add shared costs, see who owes whom, send a reminder through the iPhone share sheet, mark paid. |
+| Split | Shared groups in the cloud (signed in): invite people by email, add shared costs, "I paid" waits for the other person to confirm, reminders and payment news arrive in the in-app inbox (bell). People without Glacio can be added by name. Groups made before signing in stay on the phone and can be moved up with Share. |
 | Tax · Plan | Province picker (city lookup), 2026 combined tax buckets, income and costs, RRSP / TFSA / FHSA room with "how to find it" help, then a suggested split that never exceeds what is left after costs. |
 | Tax · Forecast | Salary slider, take-home, ordered "what to do" steps, 10-year projection by account, and a salary guide table. |
 | Tax · Refund | Estimates your 2026 refund or balance owing (federal + Ontario: credits, Ontario surtax, Health Premium, LIFT, self-employed CPP, Canada Workers Benefit) and the benefits you may get: Canada Child Benefit, Ontario Child Benefit, GST/HST credit, Ontario Trillium, OAS/GIS, Canada Disability Benefit. Each benefit is marked Checked or Estimate. |
@@ -61,3 +61,15 @@ Amounts live in `TB_DEF`, `CR26` and `BEN` near the top of the script. "Checked"
 - Ontario Trillium and Ontario Child Benefit 2026–27: canada.ca (Province of Ontario page), lifemoney.ca
 - Canada Disability Benefit 2026–27: immigrationnewscanada.ca
 - **Supabase keep-alive:** the Free plan pauses a project after about a week without activity. `.github/workflows/supabase-keepalive.yml` calls the `glacio_ping` function (`supabase/keepalive.sql`) every 3 days. GitHub runs scheduled workflows only from the default branch, and turns them off after 60 days without repository activity (it emails you first).
+
+## Sign-in and shared groups (phase 2)
+
+- Glacio opens on a sign-in screen (email + 6-digit code). "Use on this phone only for now" skips it; nothing is shared until you sign in.
+- Run `supabase/shared.sql` once in the Supabase SQL Editor. It adds profiles, groups, group_members, expenses, payments and notifications, all behind row-level security: you see only groups you belong to (or were invited to by email) and only your own notifications. Only the person who received money can confirm a payment.
+- The policies were tested against a local Postgres set up like Supabase (46 checks: outsiders, invitees, members, payer vs receiver, notification spoofing, leaving a group).
+
+## App Store version: to do
+
+- **Apple Pay auto-logging.** When a Wallet card is used, log the purchase in Glacio automatically. If that card isn't one of your Glacio accounts yet, create the account from the card name. Route: a Shortcuts "Transaction" automation calling a Glacio App Intent (FinanceKit doesn't cover Canadian cards today).
+- Native Sign in with Apple, push notifications for reminders and payment confirmations, Apple Vision on-device text recognition for receipts.
+- Import a phone-only backup or sign in to bring data across.

@@ -344,6 +344,23 @@ button.row:active{background:var(--ink-3)}
 .people{display:flex;flex-wrap:wrap;gap:8px}
 .people .chip .av{width:20px;height:20px;font-size:10px;margin-left:-5px}
 @media (display-mode: standalone){html[data-theme="light"] .device::before{content:"";position:fixed;top:0;left:0;right:0;height:env(safe-area-inset-top,0px);background:#0C0F13;z-index:40}}
+.badge{position:absolute;top:-4px;right:-4px;min-width:18px;height:18px;padding:0 5px;border-radius:9px;background:var(--danger);color:#fff;font-size:11px;font-weight:800;display:grid;place-items:center;line-height:1}
+.icon-btn{position:relative}
+.tab .tdot{position:absolute;top:8px;left:calc(50% + 8px);width:8px;height:8px;border-radius:4px;background:var(--danger);display:none}
+.tab{position:relative}.tab.has-note .tdot{display:block}
+.invite{display:flex;align-items:center;gap:10px;padding:12px;border-radius:16px;background:var(--ice-soft);margin-bottom:10px}
+.invite b{font-weight:800}
+.note{display:flex;gap:10px;align-items:flex-start;padding:12px;border-top:1px solid var(--line);width:100%;text-align:left}
+.note:first-child{border-top:0}
+.note.unread .nb{font-weight:800;color:var(--paper)}
+.note .nb{flex:1;min-width:0;white-space:normal;color:var(--paper-2);line-height:1.35}
+.note .nt{font-size:11.5px;color:var(--dim);white-space:nowrap}
+.gate .tabbar{display:none}.gate .screen{bottom:0}
+.login{min-height:100%;display:flex;flex-direction:column;justify-content:center;gap:12px;padding:24px 4px}
+.login .logo{width:64px;height:64px;border-radius:18px;margin-bottom:6px}
+.login h1{font-size:28px;font-weight:800;letter-spacing:-.02em;margin:0}
+.login p{color:var(--paper-2);margin:0 0 6px;line-height:1.5}
+.linkbtn{color:var(--mute);font-size:13px;font-weight:700;text-decoration:underline;padding:8px;align-self:center}
 @media (prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important}}
 </style>
 
@@ -353,7 +370,7 @@ button.row:active{background:var(--ink-3)}
     <main class="screen" id="screen"></main>
     <nav class="tabbar" aria-label="Main"><span class="tab-ind" id="tabInd" aria-hidden="true"></span>
       <button class="tab" data-act="tab" data-v="home" aria-label="Overview"><span style="display:grid;place-items:center;gap:8px"><i data-lucide="chart-pie"></i><span class="dot"></span></span></button>
-      <button class="tab" data-act="tab" data-v="split" aria-label="Split"><span style="display:grid;place-items:center;gap:8px"><i data-lucide="users"></i><span class="dot"></span></span></button>
+      <button class="tab" data-act="tab" data-v="split" aria-label="Split"><span style="display:grid;place-items:center;gap:8px"><i data-lucide="users"></i><span class="dot"></span></span><span class="tdot"></span></button>
       <div style="display:grid;place-items:center"><button class="tab-add" data-act="add" aria-label="Add income or expense"><i data-lucide="plus"></i></button></div>
       <button class="tab" data-act="tab" data-v="tax" aria-label="Tax"><span style="display:grid;place-items:center;gap:8px"><i data-lucide="landmark"></i><span class="dot"></span></span></button>
       <button class="tab" data-act="tab" data-v="bills" aria-label="Reminders"><span style="display:grid;place-items:center;gap:8px"><i data-lucide="bell"></i><span class="dot"></span></span></button>
@@ -688,7 +705,7 @@ async function firstSync(){
 async function syncNow(kind){
   if(!AUTH)return;if(syncing){clearTimeout(pushT);pushT=setTimeout(()=>syncNow('push'),1500);return}
   syncing=true;
-  try{await (kind==='push'?push():pull());rcSyncPending().catch(()=>{})}
+  try{await (kind==='push'?push():pull());rcSyncPending().catch(()=>{});if(kind!=='push')csLoad()}
   catch(e){if(AUTH){AUTH.lastErr=sbMsg(e);saveAuth()}}
   finally{syncing=false;if(typeof sheetCtx!=='undefined'&&sheetCtx==='settings')openSettings()}}
 function markDirty(){if(!AUTH)return;AUTH.dirty=true;AUTH.dirtyAt=Date.now();saveAuth();clearTimeout(pushT);pushT=setTimeout(()=>syncNow('push'),1500)}
@@ -903,6 +920,7 @@ function settle(b){const d=[],c=[];Object.entries(b).forEach(([k,v])=>{if(v<-.00
   return out}
 const av=(m)=>`<span class="av${m==='you'?' you':''}">${PEOPLE[m][0]}</span>`;
 function vSplit(){
+  if(csOn()&&!V.grp)return vSplitCloud();
   if(!V.grp){
     const owed=sum(S.groups,g=>Math.max(0,balances(g).you)), owe=sum(S.groups,g=>Math.max(0,-balances(g).you));
     return `
@@ -1124,7 +1142,9 @@ function render(anim=true){
   const el=$('#screen'); const y=el.scrollTop;
   V.noMask=V.tab==='tax'&&V.tview==='fc';
   document.body.classList.toggle('masked',masked());
-  el.innerHTML=VIEWS[V.tab]();
+  device.classList.toggle('gate',needLogin());
+  el.innerHTML=needLogin()?vLogin():VIEWS[V.tab]();
+  csBadge();
   document.querySelectorAll('.tab').forEach(b=>b.setAttribute('aria-current',b.dataset.v===V.tab?'page':'false'));
   el.scrollTop=anim?0:y
   after(el,anim);placeInd();
@@ -1458,6 +1478,7 @@ function openSettings(){
   ${AUTH?`<div class="list" style="background:var(--ink-3);margin-top:8px">
       <div class="kv"><span class="mute">Signed in</span><span class="v fit" style="max-width:62%">${esc(AUTH.email||'')}</span></div>
       <div class="kv"><span class="mute">Status</span><span class="v fit" style="max-width:70%">${esc(syncText())}</span></div>
+      <div class="mfield"><label for="meName">Your name in groups</label><span class="in" style="width:150px"><input id="meName" maxlength="40" value="${esc(csMyName())}" style="text-align:right"></span><button class="mini-act" data-act="mename" aria-label="Save name">${ico('check')}</button></div>
       <button class="row" data-act="sbsync"><span class="ic ice">${ico('rotate-ccw')}</span><span class="grow">Sync now</span></button>
       <button class="row" data-act="sbout"><span class="ic">${ico('x')}</span><span class="grow">Sign out</span></button></div>`
    :`<div style="display:flex;flex-direction:column;gap:8px;margin-top:8px">
@@ -1604,14 +1625,16 @@ function openNewGrp(){
   openSheet(`<div class="top" style="height:40px"><h2>New group</h2><button class="icon-btn" data-act="close" aria-label="Close">${ico('x')}</button></div>
   <div style="display:flex;flex-direction:column;gap:10px">
   <div class="field">${ico('tag')}<input id="gName" placeholder="Name, e.g. Roommates" maxlength="22"></div>
-  <div class="field">${ico('users')}<input id="gPeople" placeholder="Who else? e.g. Kai, Mia" maxlength="120"></div>
+  <div class="field">${ico('users')}<input id="gPeople" placeholder="${csOn()?'Names or emails, e.g. Kai, mia@mail.com':'Who else? e.g. Kai, Mia'}" maxlength="300" autocapitalize="off"></div>
   <div class="list" style="background:var(--ink-3)"><div class="mfield"><label>Repeats monthly</label><button class="switch" role="switch" data-act="grprep" aria-checked="false" aria-label="Repeats monthly"></button></div></div>
   <div class="savebar"><button class="btn" data-act="gsave">${ico('check')}Create group</button></div></div>`,'grp');
 }
 function saveGrp(){
-  const n=$('#gName').value.trim(),names=$('#gPeople').value.split(/[,，、]/).map(x=>x.trim()).filter(Boolean).slice(0,12);
+  const n=$('#gName').value.trim(),names=$('#gPeople').value.split(/[,，、;]/).map(x=>x.trim()).filter(Boolean).slice(0,12);
   if(!n||!names.length){toast('Add a name and at least one person','info');return}
   const rep=$('[data-act="grprep"]').getAttribute('aria-checked')==='true',base=Date.now().toString(36);
+  if(csOn()){closeSheet();const people=names.map((x,i)=>x.includes('@')?{key:'k'+i,email:x}:{key:'k'+i,name:x});
+    csDo(async()=>{const {g}=await csCreateGroup(n,rep?'house':'users',rep,people);V.cg=g.id},`${n} created`,'users');return}
   const keys=names.map((nm,i)=>{const k='p'+base+i;S.people[k]=nm;return k});
   const id='g'+uid();S.groups.push({id,n,i:rep?'house':'users',members:['you',...keys],exp:[],pay:[],rep});
   save();closeSheet();V.grp=id;render();toast(`${n} created`,'users');
@@ -1681,6 +1704,155 @@ function drawExp(){
   <div class="savebar${E.idx!=null?' two':''}">${E.idx!=null?`<button class="btn ghost" data-act="expdel" aria-label="Delete">${ico('trash')}</button>`:''}<button class="btn" data-act="esave">${ico('check')}${E.idx!=null?'Save changes':'Add cost'}</button></div></div>`,'exp');
 }
 
+/* ---------- shared Split groups (Supabase, phase 2) ----------
+   Tables + row-level security: supabase/shared.sql. Each change goes straight to the cloud, then we reload. */
+let CS=null,csErr=null,csBusy=false;
+try{CS=JSON.parse(localStorage.getItem('glacio-cs')||'null')}catch(e){CS=null}
+if(CS&&(!AUTH||CS.uid!==AUTH.uid))CS=null;
+const csSave=()=>{try{CS?localStorage.setItem('glacio-cs',JSON.stringify(CS)):localStorage.removeItem('glacio-cs')}catch(e){}};
+const rest=(path,o={})=>sbFetch('/rest/v1/'+path,{auth:true,...o});
+const RET={Prefer:'return=representation'};
+async function csLoad(){
+  if(!AUTH||!navigator.onLine||csBusy)return;csBusy=true;
+  try{const [groups,members,exp,pay,notes,prof]=await Promise.all([rest('groups?select=*&order=created_at.asc'),rest('group_members?select=*&order=created_at.asc'),
+      rest('expenses?select=*&order=created_at.asc'),rest('payments?select=*&order=created_at.asc'),rest('notifications?select=*&order=created_at.desc&limit=60'),
+      rest(`profiles?select=*&id=eq.${AUTH.uid}`)]);
+    CS={uid:AUTH.uid,groups:groups||[],members:members||[],exp:exp||[],pay:pay||[],notes:notes||[],me:(prof&&prof[0])||{id:AUTH.uid,email:AUTH.email},at:Date.now()};csErr=null;csSave()}
+  catch(e){csErr=e.code==='42P01'||e.code==='PGRST205'?'Shared groups need setup (run supabase/shared.sql)':sbMsg(e)}
+  finally{csBusy=false}
+  csBadge();if(V.tab==='split'&&!$('#sheetWrap').classList.contains('open'))render(false)}
+const csOn=()=>!!(AUTH&&CS);
+const csEmail=()=>(AUTH&&AUTH.email||'').toLowerCase();
+const csMyName=()=>(CS&&CS.me&&CS.me.name)||csEmail().split('@')[0]||'Me';
+const csMembers=gid=>CS.members.filter(m=>m.group_id===gid);
+const csMe=gid=>CS.members.find(m=>m.group_id===gid&&m.user_id===AUTH.uid);
+const csGroups=()=>CS?CS.groups.filter(g=>csMe(g.id)):[];
+const csInvites=()=>CS?CS.members.filter(m=>!m.user_id&&m.email&&m.email.toLowerCase()===csEmail()):[];
+const csUnread=()=>CS?CS.notes.filter(n=>!n.read_at).length+csInvites().length:0;
+const csNm=(gid,id)=>{const m=CS.members.find(x=>x.id===id);return !m?'Someone':m.user_id===AUTH.uid?'You':m.name};
+const csAv=(gid,id)=>{const m=CS.members.find(x=>x.id===id),n=!m?'?':m.user_id===AUTH.uid?'You':m.name;return `<span class="av${m&&m.user_id===AUTH.uid?' you':''}">${esc(n[0]||'?')}</span>`};
+function csBal(gid){const b={};csMembers(gid).forEach(m=>b[m.id]=0);
+  CS.exp.filter(e=>e.group_id===gid).forEach(e=>{const sh=+e.amount/e.among.length;b[e.payer]=(b[e.payer]||0)+(+e.amount);e.among.forEach(x=>b[x]=(b[x]||0)-sh)});
+  CS.pay.filter(p=>p.group_id===gid&&p.status==='confirmed').forEach(p=>{b[p.from_member]=(b[p.from_member]||0)+(+p.amount);b[p.to_member]=(b[p.to_member]||0)-(+p.amount)});return b}
+function csBadge(){const t=document.querySelector('.tab[data-v="split"]');if(t)t.classList.toggle('has-note',csUnread()>0)}
+async function csDo(fn,okMsg,icon){try{await fn();if(okMsg)toast(okMsg,icon||'check')}catch(e){toast(sbMsg(e),'triangle-alert')}await csLoad()}
+async function csNotify(memberId,gid,kind,body){const m=CS.members.find(x=>x.id===memberId);if(!m||!m.user_id||m.user_id===AUTH.uid)return false;
+  await rest('notifications',{method:'POST',body:{user_id:m.user_id,group_id:gid,kind,body:body.slice(0,200)}});return true}
+
+function vSplitCloud(){
+  if(V.cg)return vCloudGroup(V.cg);
+  const mine=csGroups(),inv=csInvites(),un=CS.notes.filter(n=>!n.read_at).length;let owed=0,owe=0;
+  mine.forEach(g=>{const me=csMe(g.id),v=csBal(g.id)[me.id]||0;if(v>0)owed+=v;else owe-=v});
+  return `<div class="top"><h1>Split</h1>${eyeBtn()}<button class="icon-btn" data-act="inbox" aria-label="Notifications">${ico('bell')}${un?`<span class="badge">${un}</span>`:''}</button><button class="icon-btn" data-act="newgrp" aria-label="New group">${ico('plus')}</button></div>
+  ${inv.map(m=>{const g=CS.groups.find(x=>x.id===m.group_id);return `<div class="invite"><span class="ic ice">${ico('users')}</span><span class="grow fit">Join <b>${esc(g?g.name:'a group')}</b>?</span><button class="chip ice" data-act="csaccept" data-v="${m.id}">Join</button><button class="chip" data-act="csdecline" data-v="${m.id}">No</button></div>`}).join('')}
+  <div class="legend" style="margin-top:0"><div class="leg"><span class="lt">${ico('arrow-down-left')}Owed to you</span><span class="lv fit">${fmt2(owed)}</span></div><div class="leg"><span class="lt">${ico('arrow-up-right')}You owe</span><span class="lv fit">${fmt2(owe)}</span></div></div>
+  <div class="sec">${mine.map(g=>{const me=csMe(g.id),bal=csBal(g.id)[me.id]||0,M=csMembers(g.id),tot=sum(CS.exp.filter(e=>e.group_id===g.id),e=>+e.amount),
+      wait=CS.pay.some(p=>p.group_id===g.id&&p.status==='pending'&&p.to_member===me.id);return `
+    <button class="gcard" data-act="cgrp" data-v="${g.id}"><div class="gtop"><span class="ic ice">${ico(g.icon||'users')}</span><span class="grow fit" style="font-size:16px;font-weight:800">${esc(g.name)}</span>${wait?`<span class="chip ice" style="height:24px;padding:0 8px">Confirm</span>`:''}${g.repeat?`<span class="chip" style="height:24px;padding:0 8px">${ico('repeat')}Monthly</span>`:''}</div>
+    <div class="gbot"><span class="avs">${M.slice(0,5).map(m=>csAv(g.id,m.id)).join('')}</span><span class="mute small num">${fmt2(tot)} · ${M.length} people</span><span class="amt">${bal>0.005?'+'+fmt2(bal):bal<-0.005?fmt2(bal):'Settled'}</span></div></button>`}).join('')||`<div class="list">${empty('Tap + to start a shared group','users')}</div>`}</div>
+  ${S.groups.length?`<div class="sec"><span class="label">On this phone only</span>${S.groups.map(g=>`<div class="gcard" style="display:flex;align-items:center;gap:10px"><span class="ic">${ico(g.i)}</span><button class="grow fit" style="text-align:left;font-weight:800" data-act="grp" data-v="${g.id}">${esc(g.n)}</button><button class="chip ice" data-act="csshare" data-v="${g.id}">${ico('users')}Share</button></div>`).join('')}
+    <div class="mute small" style="margin-top:8px;white-space:normal">Share moves a group to the cloud so the people in it can join with their own Glacio.</div></div>`:''}
+  ${csErr?`<div class="tip" style="margin-top:12px"><span class="ic">${ico('triangle-alert')}</span><span>${esc(csErr)}</span></div>`:''}`}
+
+function vCloudGroup(gid){
+  const g=CS.groups.find(x=>x.id===gid),me=g&&csMe(gid);if(!g||!me){V.cg=null;return vSplitCloud()}
+  const M=csMembers(gid),b=csBal(gid),st=settle(b),E=CS.exp.filter(e=>e.group_id===gid),Pa=CS.pay.filter(p=>p.group_id===gid);
+  const pend=Pa.filter(p=>p.status==='pending'),conf=Pa.filter(p=>p.status==='confirmed'),toMe=pend.filter(p=>p.to_member===me.id);
+  const tot=sum(E,e=>+e.amount),outstanding=sum(st,s=>s.amt),nm=id=>csNm(gid,id);
+  return `<div class="top"><button class="icon-btn" data-act="cgback" aria-label="Back">${ico('chevron-left')}</button><h1 class="fit">${esc(g.name)}</h1><button class="icon-btn" data-act="csexp" aria-label="Add shared cost">${ico('plus')}</button></div>
+  ${donut([{k:'set',v:tot-outstanding,c:'var(--paper)',l:'Settled'},{k:'open',v:outstanding,c:'var(--ice)',l:'Outstanding'}],{size:200,stroke:20,sub:`${M.length} people`,main:fmt2(tot),foot:'Shared'})}
+  ${toMe.length?`<div class="sec"><span class="label">Waiting for you</span><div class="list">${toMe.map(p=>`<div class="row">${csAv(gid,p.from_member)}<span class="grow fit">${esc(nm(p.from_member))} says they paid you</span><span class="amt">${fmt2(+p.amount)}</span>
+    <button class="mini-act ice" data-act="csconfirm" data-v="${p.id}" aria-label="Confirm you received it">${ico('check')}</button><button class="mini-act" data-act="csreject" data-v="${p.id}" aria-label="Not received">${ico('x')}</button></div>`).join('')}</div></div>`:''}
+  <div class="sec"><span class="label">Who owes</span><div class="list">
+    ${st.length?st.map(x=>{const toM=M.find(m=>m.id===x.to),fromM=M.find(m=>m.id===x.from),waiting=pend.find(p=>p.from_member===x.from&&p.to_member===x.to);let acts='';
+      if(waiting)acts=`<span class="chip" style="height:26px">${x.from===me.id?'Waiting':'Says paid'}</span>`;
+      else if(x.from===me.id)acts=`<button class="chip ice" data-act="csipaid" data-f="${x.from}" data-t="${x.to}" data-a="${x.amt}">I paid</button>`;
+      else if(x.to===me.id)acts=`<button class="mini-act ice" data-act="csremind" data-f="${x.from}" data-a="${x.amt}" aria-label="Remind ${esc(nm(x.from))}">${ico('bell-ring')}</button><button class="mini-act" data-act="csgot" data-f="${x.from}" data-t="${x.to}" data-a="${x.amt}" aria-label="Mark received">${ico('circle-check')}</button>`;
+      else if(toM&&!toM.user_id)acts=`<button class="mini-act" data-act="csgot" data-f="${x.from}" data-t="${x.to}" data-a="${x.amt}" aria-label="Mark paid">${ico('circle-check')}</button>`;
+      return `<div class="row"><span class="flow">${csAv(gid,x.from)}<span class="grow fit" style="margin-left:2px">${esc(nm(x.from))} → ${esc(nm(x.to))}</span></span><span class="amt">${fmt2(x.amt)}</span>${acts}</div>`}).join('')
+      :`<div class="row"><span class="ic ice">${ico('check')}</span><span class="grow">All settled</span></div>`}
+  </div><div class="mute small" style="margin-top:8px;white-space:normal">"I paid" waits until the other person confirms. The bell sends them a reminder in Glacio.</div></div>
+  <div class="sec"><span class="label">People</span><div class="people">${M.map(m=>`<button class="chip" data-act="csperson" data-v="${m.id}">${csAv(gid,m.id)}${esc(m.user_id===AUTH.uid?'You':m.name)}${!m.user_id&&m.email?' · invited':''}</button>`).join('')}<button class="chip ice" data-act="csperson" data-v="new">${ico('plus')}Add person</button></div></div>
+  <div class="sec"><span class="label">Costs</span><div class="list">${E.length?'':empty('Tap + to add a shared cost','receipt')}
+    ${E.map(e=>`<div class="swipe"><button class="swdel" data-act="swdel" data-k="csexp" data-v="${e.id}" aria-label="Delete">${ico('trash')}</button><button class="row swrow" data-act="csexp" data-v="${e.id}"><span class="ic">${ico('receipt')}</span><span class="grow fit">${esc(e.label)}</span><span class="mute small num">${esc(nm(e.payer))} ÷${e.among.length}</span><span class="amt">${fmt2(+e.amount)}</span></button></div>`).join('')}</div></div>
+  ${conf.length?`<div class="sec"><span class="label">Paid back</span><div class="list">${conf.map(p=>`<div class="swipe"><button class="swdel" data-act="swdel" data-k="cspay" data-v="${p.id}" aria-label="Undo payment">${ico('rotate-ccw')}</button><button class="row swrow" data-act="cspayundo" data-v="${p.id}">${csAv(gid,p.from_member)}<span class="grow fit">${esc(nm(p.from_member))} paid ${esc(nm(p.to_member))}</span><span class="amt">${fmt2(+p.amount)}</span>${ico('rotate-ccw')}</button></div>`).join('')}</div>
+    <div class="mute small" style="margin-top:8px;white-space:normal">Marked by mistake? Tap a payment to undo it.</div></div>`:''}
+  <div class="sec">${g.created_by===AUTH.uid?`<button class="btn ghost" data-act="csdelgrp" data-v="${g.id}">${ico('trash')}Delete group</button>`:`<button class="btn ghost" data-act="csleave" data-v="${g.id}">${ico('x')}Leave group</button>`}</div>`}
+
+/* shared cost sheet */
+let CE=null;
+function openCsExp(eid){const gid=V.cg,e=eid&&CS.exp.find(x=>x.id===eid),M=csMembers(gid),me=csMe(gid);
+  CE=e?{id:e.id,payer:e.payer,among:[...e.among],l:e.label,amt:+e.amount}:{payer:me.id,among:M.map(m=>m.id)};drawCsExp()}
+function drawCsExp(){const gid=V.cg,M=csMembers(gid),live=sheetCtx==='csexp';
+  const nm=live?($('#ceName')?.value||''):(CE.l||''),am=live?($('#ceAmt')?.value||''):(CE.amt!=null?String(CE.amt):'');
+  openSheet(`<div class="top" style="height:40px"><h2>${CE.id?'Edit shared cost':'Shared cost'}</h2><button class="icon-btn" data-act="close" aria-label="Close">${ico('x')}</button></div>
+  <div style="display:flex;flex-direction:column;gap:10px">
+  <div class="field">${ico('tag')}<input id="ceName" placeholder="What, e.g. Hydro" maxlength="60" value="${esc(nm)}"></div>
+  <div class="field">${ico('dollar-sign')}<input id="ceAmt" inputmode="decimal" placeholder="Total" value="${esc(am)}"></div>
+  <div class="opt"><span class="lbl">${ico('hand-coins')}Paid</span><div class="chips">${M.map(m=>`<button class="chip${CE.payer===m.id?' on':''}" data-act="cepay" data-v="${m.id}">${esc(csNm(gid,m.id))}</button>`).join('')}</div></div>
+  <div class="opt"><span class="lbl">${ico('split')}Split</span><div class="chips">${M.map(m=>`<button class="chip${CE.among.includes(m.id)?' on':''}" data-act="ceamong" data-v="${m.id}">${esc(csNm(gid,m.id))}</button>`).join('')}</div></div>
+  <div class="mute small num">Split evenly between ${CE.among.length}</div>
+  <div class="savebar${CE.id?' two':''}">${CE.id?`<button class="btn ghost" data-act="cedel" aria-label="Delete">${ico('trash')}</button>`:''}<button class="btn" data-act="cesave">${ico('check')}${CE.id?'Save changes':'Add cost'}</button></div></div>`,'csexp')}
+async function saveCsExp(){const gid=V.cg,amt=parseMoney($('#ceAmt').value),label=($('#ceName').value.trim()||'Shared cost').slice(0,60);if(!amt){toast('Enter the total','info');return}
+  const body={label,amount:Math.round(amt*100)/100,payer:CE.payer,among:CE.among};closeSheet();
+  await csDo(async()=>{if(CE.id)await rest('expenses?id=eq.'+CE.id,{method:'PATCH',body:{...body,updated_at:new Date().toISOString()}});
+    else{await rest('expenses',{method:'POST',body:{...body,group_id:gid}});const g=CS.groups.find(x=>x.id===gid);
+      for(const m of csMembers(gid))if(m.user_id&&m.user_id!==AUTH.uid)await csNotify(m.id,gid,'expense',`${csMyName()} added ${label} ${fmt2(body.amount)} in ${g.name}`).catch(()=>{})}},CE.id?'Changes saved':`${label} split ${CE.among.length} ways`,'split')}
+
+/* people sheet */
+function openCsPerson(mid){const gid=V.cg,isNew=mid==='new',m=!isNew&&CS.members.find(x=>x.id===mid);
+  const used=m&&(CS.exp.some(e=>e.group_id===gid&&(e.payer===m.id||e.among.includes(m.id)))||CS.pay.some(p=>p.group_id===gid&&(p.from_member===m.id||p.to_member===m.id)));
+  const self=m&&m.user_id===AUTH.uid,joined=m&&m.user_id&&!self;
+  openSheet(`<div class="top" style="height:40px"><h2>${isNew?'Add person':esc(self?'You':m.name)}</h2><button class="icon-btn" data-act="close" aria-label="Close">${ico('x')}</button></div>
+  <div style="display:flex;flex-direction:column;gap:10px">
+  ${isNew?`<div class="field">${ico('users')}<input id="cpName" placeholder="Name, e.g. Kai" maxlength="40"></div>
+    <div class="field">${ico('tag')}<input id="cpEmail" type="email" inputmode="email" autocapitalize="off" placeholder="Their email (optional)" maxlength="254"></div>
+    <div class="mute small" style="white-space:normal">With an email they can join from their own Glacio, get reminders and confirm payments. Without one, you keep track for them.</div>`
+   :self?`<div class="mute small">Your name in groups: <b>${esc(csMyName())}</b>. Change it in Settings.</div>`
+   :joined?`<div class="mute small" style="white-space:normal">${esc(m.name)} uses Glacio. Only they can change their name.</div>`
+   :`<div class="field">${ico('users')}<input id="cpName" maxlength="40" value="${esc(m.name)}"></div>${m.email?`<div class="mute small">Invited: ${esc(m.email)}</div>`:''}`}
+  ${!isNew&&!self?(used?`<div class="mute small" style="white-space:normal">They are in a cost or payment, so they stay in the group.</div>`:`<button class="btn ghost" data-act="cprm" data-v="${m.id}">${ico('trash')}Remove from group</button>`):''}
+  ${isNew||(m&&!m.user_id)?`<div class="savebar"><button class="btn" data-act="cpsave" data-v="${isNew?'new':m.id}">${ico('check')}${isNew?'Add':'Save'}</button></div>`:''}</div>`,'csperson')}
+async function saveCsPerson(mid){const gid=V.cg,name=($('#cpName')?.value||'').trim(),email=($('#cpEmail')?.value||'').trim();
+  if(mid==='new'&&!name&&!email){toast('Add a name or an email','info');return}closeSheet();
+  await csDo(async()=>{if(mid!=='new')await rest('group_members?id=eq.'+mid,{method:'PATCH',body:{name:name.slice(0,40)||'Someone'}});
+    else if(email)await rest('rpc/glacio_invite',{method:'POST',body:{gid,invite_email:email,invite_name:name}});
+    else await rest('group_members',{method:'POST',body:{group_id:gid,name:name.slice(0,40)}})},mid==='new'?(email?'Invite sent':'Added'):'Saved','users')}
+
+/* group create / share */
+async function csCreateGroup(name,icon,repeat,people){
+  const g=(await rest('groups',{method:'POST',headers:RET,body:{name:name.slice(0,40),icon,repeat}}))[0];
+  const me=(await rest('group_members',{method:'POST',headers:RET,body:{group_id:g.id,user_id:AUTH.uid,name:csMyName().slice(0,40)}}))[0];
+  const ids={};
+  for(const p of people){if(p.email){const r=await rest('rpc/glacio_invite',{method:'POST',body:{gid:g.id,invite_email:p.email,invite_name:p.name||''}});ids[p.key]=r}
+    else{const r=(await rest('group_members',{method:'POST',headers:RET,body:{group_id:g.id,name:(p.name||'Someone').slice(0,40)}}))[0];ids[p.key]=r.id}}
+  return {g,me,ids}}
+async function csShareLocal(lid){const lg=S.groups.find(x=>x.id===lid);if(!lg)return;
+  await csDo(async()=>{const people=lg.members.filter(m=>m!=='you').map(k=>({key:k,name:PEOPLE[k]}));
+    const {g,me,ids}=await csCreateGroup(lg.n,lg.i,!!lg.rep,people);ids.you=me.id;
+    for(const e of lg.exp)await rest('expenses',{method:'POST',body:{group_id:g.id,label:e.l.slice(0,60),amount:e.amt,payer:ids[e.payer],among:e.among.map(x=>ids[x]).filter(Boolean)}});
+    for(const p of lg.pay)await rest('payments',{method:'POST',body:{group_id:g.id,from_member:ids[p.from],to_member:ids[p.to],amount:p.amt,status:p.to==='you'||!ids[p.to]?'confirmed':'pending'}}).catch(()=>{});
+    S.groups=S.groups.filter(x=>x!==lg);save();V.cg=g.id},'Group shared. Add their emails under People','users')}
+
+/* inbox */
+function openInbox(){const N=CS?CS.notes:[],ago=t=>{const m=Math.round((Date.now()-Date.parse(t))/6e4);return m<1?'now':m<60?m+'m':m<1440?Math.round(m/60)+'h':Math.round(m/1440)+'d'};
+  const icn={invite:'users',reminder:'bell-ring',paid:'hand-coins',confirmed:'circle-check',declined:'x',expense:'receipt'};
+  openSheet(`<div class="top" style="height:40px"><span class="ic ice">${ico('bell')}</span><h2>Notifications</h2>${N.some(n=>!n.read_at)?`<button class="chip" data-act="inboxread">Mark read</button>`:''}<button class="icon-btn" data-act="close" aria-label="Close">${ico('x')}</button></div>
+  <div class="list" style="background:var(--ink-3)">${N.length?N.map(n=>`<button class="note${n.read_at?'':' unread'}" data-act="noteopen" data-v="${n.id}"><span class="ic${n.read_at?'':' ice'}">${ico(icn[n.kind]||'bell')}</span><span class="nb">${esc(n.body)}</span><span class="nt">${ago(n.created_at)}</span></button>`).join('')
+    :empty('Nothing yet','bell')}</div>`,'inbox')}
+
+/* sign-in screen (shown until you sign in) */
+const localOnly=()=>{try{return localStorage.getItem('glacio-local-only')==='1'}catch(e){return false}};
+const needLogin=()=>!AUTH&&!localOnly();
+function vLogin(){return `<div class="login">
+  <img class="logo" src="icons/icon-192.png" alt="">
+  <h1>Glacio</h1><p>Sign in with your email. We send a 6-digit code. Your data is only visible to you.</p>
+  <div class="field">${ico('tag')}<input id="sbEmail" type="email" inputmode="email" autocomplete="email" autocapitalize="off" placeholder="Your email" value="${esc(V.sbEmail||'')}"></div>
+  ${V.sbSent?`<div class="field">${ico('key-round')}<input id="sbCode" inputmode="numeric" autocomplete="one-time-code" maxlength="10" placeholder="Code from the email"></div>
+    <div style="display:grid;grid-template-columns:1fr 2fr;gap:8px"><button class="btn ghost" data-act="sbback">Back</button><button class="btn" data-act="sbverify">${ico('check')}Sign in</button></div>`
+   :`<button class="btn" data-act="sbsend">${ico('arrow-right')}Email me a code</button>`}
+  <button class="linkbtn" data-act="localonly">Use on this phone only for now</button></div>`}
+
 /* ---------- delete with undo (5 s) ---------- */
 let UNDO=null;
 function deleteWithUndo(kind,id){
@@ -1713,14 +1885,54 @@ device.addEventListener('click',e=>{
   if(b.classList.contains('arc'))return;
   const a=b.dataset.act,v=b.dataset.v,t=S.tax;
   switch(a){
-    case 'tab': if(V.tab===v&&v!=='home')return; V.tab=v;V.lvl=0;V.sel=null;V.grp=null;if(v==='tax'&&t.step===3){} closeIf();render();break;
-    case 'add': if(V.tab==='split'){if(V.grp)openAddExp();else if(S.groups.length)openGrpPick();else openNewGrp()}else openAdd();break;
+    case 'tab': if(V.tab===v&&v==='split'&&(V.cg||V.grp)){V.cg=null;V.grp=null;render();return}
+      if(V.tab===v&&v!=='home')return; V.tab=v;V.lvl=0;V.sel=null;V.grp=null;if(v==='tax'&&t.step===3){} closeIf();render();break;
+    case 'add': if(V.tab==='split'&&csOn()&&V.cg&&!V.grp){openCsExp();break}
+      if(V.tab==='split'){if(V.grp)openAddExp();else if(S.groups.length&&!csOn())openGrpPick();else openNewGrp()}else openAdd();break;
     case 'close': closeSheet();break;
     case 'open': V.type=v;V.lvl=1;V.sel=null;render();break;
     case 'acct': V.acct=v;V.lvl=2;render();break;
     case 'back': if(V.tab==='split'){V.grp=null}else{V.lvl=Math.max(0,V.lvl-1);V.sel=null}render();break;
     case 'settings': openSettings();break;
-    case 'swdel': deleteWithUndo(b.dataset.k,v);break;
+    case 'swdel': if(b.dataset.k==='csexp'){if(confirm('Delete this shared cost for everyone?'))csDo(()=>rest('expenses?id=eq.'+v,{method:'DELETE'}),'Deleted','trash');else swClose();break}
+      if(b.dataset.k==='cspay'){if(confirm('Undo this payment for everyone?'))csDo(()=>rest('payments?id=eq.'+v,{method:'DELETE'}),'Payment undone','rotate-ccw');else swClose();break}
+      deleteWithUndo(b.dataset.k,v);break;
+    case 'cgrp': V.cg=v;render();break;
+    case 'cgback': V.cg=null;render();break;
+    case 'inbox': openInbox();break;
+    case 'inboxread': csDo(()=>rest(`notifications?user_id=eq.${AUTH.uid}&read_at=is.null`,{method:'PATCH',body:{read_at:new Date().toISOString()}})).then(()=>openInbox());break;
+    case 'noteopen':{const n=CS.notes.find(x=>x.id===v);closeSheet();if(n&&!n.read_at)rest('notifications?id=eq.'+v,{method:'PATCH',body:{read_at:new Date().toISOString()}}).then(csLoad).catch(()=>{});if(n&&n.group_id&&csMe(n.group_id)){V.tab='split';V.cg=n.group_id;V.grp=null}render();break}
+    case 'csaccept': csDo(()=>rest('rpc/glacio_accept',{method:'POST',body:{mid:v}}),'Joined','users');break;
+    case 'csdecline': if(confirm('Decline this invite?'))csDo(()=>rest('group_members?id=eq.'+v,{method:'DELETE'}),'Declined','x');break;
+    case 'csshare': if(confirm('Move this group to the cloud? You can then invite people by email.'))csShareLocal(v);break;
+    case 'csexp': openCsExp(v);break;
+    case 'cepay': CE.payer=v;drawCsExp();break;
+    case 'ceamong': if(CE.among.includes(v)){if(CE.among.length>1)CE.among=CE.among.filter(x=>x!==v)}else CE.among.push(v);drawCsExp();break;
+    case 'cesave': saveCsExp();break;
+    case 'cedel': if(confirm('Delete this shared cost for everyone?')){closeSheet();csDo(()=>rest('expenses?id=eq.'+CE.id,{method:'DELETE'}),'Deleted','trash')}break;
+    case 'csperson': openCsPerson(v);break;
+    case 'cpsave': saveCsPerson(v);break;
+    case 'cprm': closeSheet();csDo(()=>rest('group_members?id=eq.'+v,{method:'DELETE'}),'Removed','trash');break;
+    case 'csipaid':{const gid=V.cg,g=CS.groups.find(x=>x.id===gid),a=+b.dataset.a;if(!confirm(`Tell ${csNm(gid,b.dataset.t)} you paid ${fmt2(a)}?`))break;
+      csDo(async()=>{await rest('payments',{method:'POST',body:{group_id:gid,from_member:b.dataset.f,to_member:b.dataset.t,amount:Math.round(a*100)/100}});
+        await csNotify(b.dataset.t,gid,'paid',`${csMyName()} says they paid you ${fmt2(a)} for ${g.name}. Please confirm.`)},'Sent. Waiting for them to confirm','hand-coins');break}
+    case 'csgot':{const gid=V.cg,g=CS.groups.find(x=>x.id===gid),a=+b.dataset.a;if(!confirm(`Mark ${fmt2(a)} from ${csNm(gid,b.dataset.f)} as received?`))break;
+      csDo(async()=>{await rest('payments',{method:'POST',body:{group_id:gid,from_member:b.dataset.f,to_member:b.dataset.t,amount:Math.round(a*100)/100,status:'confirmed',confirmed_at:new Date().toISOString()}});
+        await csNotify(b.dataset.f,gid,'confirmed',`${csMyName()} marked your ${fmt2(a)} for ${g.name} as received.`)},'Marked as paid','circle-check');break}
+    case 'csconfirm':{const p=CS.pay.find(x=>x.id===v),g=p&&CS.groups.find(x=>x.id===p.group_id);if(!p)break;
+      csDo(async()=>{await rest('payments?id=eq.'+v,{method:'PATCH',body:{status:'confirmed',confirmed_at:new Date().toISOString()}});
+        await csNotify(p.from_member,p.group_id,'confirmed',`${csMyName()} confirmed your ${fmt2(+p.amount)} for ${g.name}.`)},'Confirmed','circle-check');break}
+    case 'csreject':{const p=CS.pay.find(x=>x.id===v),g=p&&CS.groups.find(x=>x.id===p.group_id);if(!p||!confirm('Not received yet? They will be told.'))break;
+      csDo(async()=>{await rest('payments?id=eq.'+v,{method:'DELETE'});
+        await csNotify(p.from_member,p.group_id,'declined',`${csMyName()} hasn't received your ${fmt2(+p.amount)} for ${g.name} yet.`)},'They will be told','x');break}
+    case 'cspayundo':{const p=CS.pay.find(x=>x.id===v);if(p&&confirm(`Undo: ${csNm(p.group_id,p.from_member)} paid ${csNm(p.group_id,p.to_member)} ${fmt2(+p.amount)}?`))csDo(()=>rest('payments?id=eq.'+v,{method:'DELETE'}),'Payment undone','rotate-ccw');break}
+    case 'csremind':{const gid=V.cg,g=CS.groups.find(x=>x.id===gid),a=+b.dataset.a,m=CS.members.find(x=>x.id===b.dataset.f),msg=`Reminder: you owe ${csMyName()} ${fmt2(a)} for ${g.name}.`;
+      if(m&&m.user_id){csDo(()=>csNotify(m.id,gid,'reminder',msg),'Reminder sent in Glacio','bell-ring')}
+      else{const txt=`Hi ${m?m.name:''}, ${msg}`;if(navigator.share)navigator.share({text:txt}).catch(()=>{});else{try{navigator.clipboard.writeText(txt);toast('Reminder copied','bell-ring')}catch(e){}}}break}
+    case 'csdelgrp': if(confirm('Delete this group for everyone?')){V.cg=null;csDo(()=>rest('groups?id=eq.'+v,{method:'DELETE'}),'Group deleted','trash')}break;
+    case 'csleave':{const me=csMe(v);if(me&&confirm('Leave this group? You stay in its costs and payments.')){V.cg=null;csDo(()=>rest('rpc/glacio_leave',{method:'POST',body:{gid:v}}),'Left the group','x')}break}
+    case 'localonly': try{localStorage.setItem('glacio-local-only','1')}catch(e){}render();break;
+    case 'mename':{const n=($('#meName')?.value||'').trim().slice(0,40);if(!n){toast('Add your name','info');return}csDo(()=>rest('profiles?id=eq.'+AUTH.uid,{method:'PATCH',body:{name:n}}),'Name saved','check').then(()=>openSettings());break}
     case 'undo': undoDelete();break;
     case 'delitem': closeSheet();deleteWithUndo(b.dataset.k,v);break;
     case 'theme': applyTheme(v);openSettings();break;
@@ -1756,13 +1968,13 @@ device.addEventListener('click',e=>{
     case 'provset': t.prov=v;save();closeSheet();render(false);toast(`Using ${PROV[v].n} rates`,'map-pin');break;
     case 'asug':{const p=payees(A.type).find(x=>x.m===v);if(!p)break;A.m=p.m;A.cat=CATS[p.cat]?p.cat:A.cat;if(p.acct&&S.accts.some(a=>a.id===p.acct))A.acct=p.acct;if(!A.amt)A.amt=String(+p.amt.toFixed(2));drawAdd();break}
     case 'sbsend':{const em=$('#sbEmail').value.trim();if(!/^\S+@\S+\.\S+$/.test(em)){toast('Enter your email','info');return}
-      V.sbEmail=em;b.disabled=true;sendCode(em).then(()=>{V.sbSent=true;openSettings();toast('Code sent. Check your email','check')}).catch(err=>{b.disabled=false;toast(sbMsg(err),'triangle-alert')});break}
+      V.sbEmail=em;b.disabled=true;sendCode(em).then(()=>{V.sbSent=true;if(sheetCtx==='settings')openSettings();else render(false);toast('Code sent. Check your email','check')}).catch(err=>{b.disabled=false;toast(sbMsg(err),'triangle-alert')});break}
     case 'sbverify':{const code=$('#sbCode').value.replace(/\s/g,'');if(!code){toast('Enter the code','info');return}
-      b.disabled=true;verifyCode(V.sbEmail,code).then(()=>{V.sbSent=false;openSettings();toast('Signed in. Sync is on','check')}).catch(err=>{b.disabled=false;if(AUTH&&AUTH.uid){AUTH.lastErr=sbMsg(err);saveAuth();openSettings()}toast(sbMsg(err),'triangle-alert')});break}
-    case 'sbback': V.sbSent=false;openSettings();break;
+      b.disabled=true;verifyCode(V.sbEmail,code).then(()=>{V.sbSent=false;if(sheetCtx==='settings')openSettings();render(false);csLoad();toast('Signed in. Sync is on','check')}).catch(err=>{b.disabled=false;if(AUTH&&AUTH.uid){AUTH.lastErr=sbMsg(err);saveAuth();openSettings()}toast(sbMsg(err),'triangle-alert')});break}
+    case 'sbback': V.sbSent=false;if(sheetCtx==='settings')openSettings();else render(false);break;
     case 'sbsync': syncNow(AUTH&&AUTH.dirty?'push':'pull');toast('Syncing…','rotate-ccw');break;
     case 'sbout': if(AUTH&&confirm('Sign out of cloud sync? Your data stays on this phone.')){const tok=AUTH.access_token;
-      fetch(SB.url+'/auth/v1/logout',{method:'POST',headers:{apikey:SB.key,Authorization:'Bearer '+tok}}).catch(()=>{});AUTH=null;saveAuth();clearTimeout(pushT);openSettings();toast('Signed out','info')}break;
+      fetch(SB.url+'/auth/v1/logout',{method:'POST',headers:{apikey:SB.key,Authorization:'Bearer '+tok}}).catch(()=>{});AUTH=null;saveAuth();CS=null;csSave();V.cg=null;clearTimeout(pushT);closeSheet();render();toast('Signed out','info')}break;
     case 'acctnew': if(v==='add'&&$('#aName'))A.m=$('#aName').value; openAcctNew(v);break;
     case 'ackind': AC.kind=v;drawAcctNew();break;
     case 'acsave': saveAcct();break;
@@ -1918,6 +2130,7 @@ render();
 if('serviceWorker' in navigator&&(location.protocol==='https:'||location.hostname==='localhost'))navigator.serviceWorker.register('sw.js').catch(()=>{});
 document.addEventListener('visibilitychange',()=>{if(document.visibilityState!=='visible')return;if(iso(new Date())!==TODAY_ISO){location.reload();return}syncNow('pull')});
 window.addEventListener('online',()=>syncNow(AUTH&&AUTH.dirty?'push':'pull'));
+setInterval(()=>{if(AUTH&&document.visibilityState==='visible')csLoad()},60000);
 syncNow('pull');
 </script>
 
