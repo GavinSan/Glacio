@@ -1,5 +1,5 @@
 /* Glacio offline cache. Bump CACHE when shipping changes to the shell files. */
-const CACHE = 'glacio-v2-14';
+const CACHE = 'glacio-v2-15';
 const SHELL = ['./', 'index.html', 'manifest.webmanifest', 'icons/icon-192.png', 'icons/icon-512.png', 'icons/apple-touch-icon.png'];
 const FONT_HOSTS = ['fonts.googleapis.com', 'fonts.gstatic.com'];
 
